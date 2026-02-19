@@ -6,7 +6,7 @@ export function Root() {
 
   const navItems = [
     { path: '/', icon: Home, label: 'Feed' },
-    { path: '/explore', icon: Compass, label: 'Explore' },
+    { path: '/explore', icon: Compass, label: 'Music Map' },
     { path: '/playlists', icon: Music, label: 'Playlists' },
     { path: '/profile/musiclover', icon: User, label: 'Profile' },
   ];

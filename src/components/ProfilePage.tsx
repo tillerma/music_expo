@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { currentUser, generateCalendarPosts } from '../data/mockData';
-import { SongPost } from '../types';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { currentUser, generateCalendarPosts, initialFollowRequests } from '../data/mockData';
+import { SongPost, FollowRequest } from '../types';
+import { ChevronLeft, ChevronRight, Bell, X, Check } from 'lucide-react';
 
 export function ProfilePage() {
   const [selectedPost, setSelectedPost] = useState<SongPost | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date('2026-02-01'));
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [followRequests, setFollowRequests] = useState<FollowRequest[]>(initialFollowRequests);
   const calendarPosts = generateCalendarPosts();
 
   const getPostForDate = (dateStr: string) => {
@@ -46,8 +48,27 @@ export function ProfilePage() {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
   };
 
+  const handleRejectRequest = (request: FollowRequest) => {
+    setFollowRequests(followRequests.filter(r => r.id !== request.id));
+  };
+
+  const handleAcceptRequest = (request: FollowRequest) => {
+    // Show follow back option
+    const followBack = window.confirm(
+      `${request.fromUser.displayName} is now following you! Would you like to follow them back?`
+    );
+    
+    setFollowRequests(followRequests.filter(r => r.id !== request.id));
+    
+    if (followBack) {
+      // In a real app, this would send a follow request
+      console.log(`Following back ${request.fromUser.username}`);
+    }
+  };
+
   const monthName = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
   const calendarDays = generateCalendarDays();
+  const pendingRequests = followRequests.filter(r => r.status === 'pending');
 
   return (
     <div className="min-h-screen bg-white">
@@ -210,6 +231,67 @@ export function ProfilePage() {
               CLOSE
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Notifications */}
+      <button
+        onClick={() => setShowNotifications(!showNotifications)}
+        className="fixed top-4 right-4 z-50 p-3 bg-gradient-to-r from-purple-400 to-pink-400 border-2 border-black hover:translate-x-0.5 hover:translate-y-0.5 transition-transform shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+      >
+        <Bell className="w-5 h-5 text-white" />
+        {pendingRequests.length > 0 && (
+          <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 border-2 border-black text-white text-xs font-bold flex items-center justify-center">
+            {pendingRequests.length}
+          </span>
+        )}
+      </button>
+
+      {showNotifications && (
+        <div className="fixed top-16 right-4 z-50 bg-white border-4 border-black p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-w-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold">NOTIFICATIONS</h3>
+            <button
+              onClick={() => setShowNotifications(false)}
+              className="p-1 hover:bg-gray-100 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {pendingRequests.length > 0 ? (
+            pendingRequests.map((request, i) => (
+              <div key={i} className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <img
+                    src={request.fromUser.avatarUrl}
+                    alt={request.fromUser.username}
+                    className="w-10 h-10 border-2 border-black object-cover shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                  />
+                  <div className="flex flex-col">
+                    <p className="font-bold text-black">{request.fromUser.displayName}</p>
+                    <p className="text-sm text-gray-600 font-medium">@{request.fromUser.username}</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleRejectRequest(request)}
+                    className="p-1 bg-gray-200 border-2 border-black text-sm font-bold hover:bg-gray-300 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleAcceptRequest(request)}
+                    className="p-1 bg-green-200 border-2 border-black text-sm font-bold hover:bg-green-300 transition-colors"
+                  >
+                    <Check className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-600 text-sm">No new notifications</p>
+          )}
         </div>
       )}
     </div>

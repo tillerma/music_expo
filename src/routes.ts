@@ -2,7 +2,7 @@ import { createBrowserRouter } from "react-router";
 import { Root } from "./components/Root";
 import { FeedPage } from "./components/FeedPage";
 import { ProfilePage } from "./components/ProfilePage";
-import { ExplorePage } from "./components/ExplorePage";
+import { MusicMapPage } from "./components/MusicMapPage";
 import { PlaylistsPage } from "./components/PlaylistsPage";
 
 export const router = createBrowserRouter([
@@ -12,7 +12,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, Component: FeedPage },
       { path: "profile/:username", Component: ProfilePage },
-      { path: "explore", Component: ExplorePage },
+      { path: "explore", Component: MusicMapPage },
       { path: "playlists", Component: PlaylistsPage },
     ],
   },

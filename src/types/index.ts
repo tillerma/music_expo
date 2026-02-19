@@ -6,25 +6,49 @@ export interface User {
   avatarUrl: string;
   followers: number;
   following: number;
+  followedByCurrentUser?: boolean;
+}
+
+export interface FollowRequest {
+  id: string;
+  fromUser: User;
+  toUserId: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  timestamp: string;
+}
+
+export interface Reaction {
+  emoji: string;
+  userId: string;
+  userName: string;
+}
+
+export interface Comment {
+  id: string;
+  userId: string;
+  user: User;
+  caption: string;
+  song?: {
+    songTitle: string;
+    artist: string;
+    albumArt: string;
+    spotifyUrl: string;
+  };
+  timestamp: string;
 }
 
 export interface SongPost {
   id: string;
   userId: string;
   user: User;
-  date: string; // YYYY-MM-DD
   spotifyUrl: string;
-  caption: string;
   albumArt: string;
   songTitle: string;
   artist: string;
-  reactions: EmojiReaction[];
-}
-
-export interface EmojiReaction {
-  emoji: string;
-  userId: string;
-  userName: string;
+  caption: string;
+  date: string;
+  reactions: Reaction[];
+  comments: Comment[];
 }
 
 export interface DailyEmojiSet {

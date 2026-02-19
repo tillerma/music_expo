@@ -1,11 +1,18 @@
 import { useState } from 'react';
-import { songPosts, dailyEmojiSets } from '../data/mockData';
-import { SongPost as SongPostType } from '../types';
-import { Plus } from 'lucide-react';
+import { songPosts as initialPosts, dailyEmojiSets, currentUser } from '../data/mockData';
+import { SongPost, Comment } from '../types';
+import { ChevronDown, ChevronUp, MessageCircle, ExternalLink } from 'lucide-react';
+
+interface SongPostComponentProps {
+  post: SongPost;
+  emojiSet: string[];
+  onReaction: (postId: string, emoji: string) => void;
+  onAddComment: (postId: string, comment: Comment) => void;
+}
 
 export function FeedPage() {
   const todayEmojiSet = dailyEmojiSets[0];
-  const [posts, setPosts] = useState(songPosts.filter(p => p.date === '2026-02-12'));
+  const [posts, setPosts] = useState(initialPosts.filter(p => p.date === '2026-02-12'));
   const [showNewPost, setShowNewPost] = useState(false);
 
   const handleReaction = (postId: string, emoji: string) => {
@@ -13,18 +20,28 @@ export function FeedPage() {
       if (post.id === postId) {
         const existingReaction = post.reactions.find(r => r.userId === 'user-1');
         if (existingReaction) {
-          // Remove existing reaction
           return {
             ...post,
             reactions: post.reactions.filter(r => r.userId !== 'user-1'),
           };
         } else {
-          // Add new reaction
           return {
             ...post,
             reactions: [...post.reactions, { emoji, userId: 'user-1', userName: 'musiclover' }],
           };
         }
+      }
+      return post;
+    }));
+  };
+
+  const handleAddComment = (postId: string, comment: Comment) => {
+    setPosts(posts.map(post => {
+      if (post.id === postId) {
+        return {
+          ...post,
+          comments: [...post.comments, comment],
+        };
       }
       return post;
     }));
@@ -104,6 +121,7 @@ export function FeedPage() {
             post={post}
             emojiSet={todayEmojiSet.emojis}
             onReaction={handleReaction}
+            onAddComment={handleAddComment}
           />
         ))}
       </div>
@@ -118,14 +136,10 @@ export function FeedPage() {
   );
 }
 
-interface SongPostComponentProps {
-  post: SongPostType;
-  emojiSet: string[];
-  onReaction: (postId: string, emoji: string) => void;
-}
-
-function SongPostComponent({ post, emojiSet, onReaction }: SongPostComponentProps) {
+function SongPostComponent({ post, emojiSet, onReaction, onAddComment }: SongPostComponentProps) {
   const [showReactions, setShowReactions] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [showAddComment, setShowAddComment] = useState(false);
   const userReaction = post.reactions.find(r => r.userId === 'user-1');
 
   return (
@@ -168,7 +182,7 @@ function SongPostComponent({ post, emojiSet, onReaction }: SongPostComponentProp
       <p className="text-black mb-4">{post.caption}</p>
 
       {/* Reactions */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-2 flex-wrap mb-3">
         {post.reactions.map((reaction, i) => (
           <div
             key={i}
@@ -194,7 +208,7 @@ function SongPostComponent({ post, emojiSet, onReaction }: SongPostComponentProp
 
       {/* Emoji Picker */}
       {showReactions && (
-        <div className="mt-3 flex gap-2 p-3 bg-gradient-to-r from-blue-100 to-purple-100 border-2 border-black">
+        <div className="mt-3 flex gap-2 p-3 bg-gradient-to-r from-blue-100 to-purple-100 border-2 border-black mb-3">
           {emojiSet.map((emoji, i) => (
             <button
               key={i}
@@ -209,6 +223,204 @@ function SongPostComponent({ post, emojiSet, onReaction }: SongPostComponentProp
           ))}
         </div>
       )}
+
+      {/* Comments Section */}
+      <div className="border-t-2 border-gray-300 pt-3">
+        <button
+          onClick={() => setShowComments(!showComments)}
+          className="flex items-center gap-2 text-sm font-bold text-gray-700 hover:text-black transition-colors"
+        >
+          <MessageCircle className="w-4 h-4" />
+          <span>{post.comments.length} {post.comments.length === 1 ? 'COMMENT' : 'COMMENTS'}</span>
+          {showComments ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+
+        {showComments && (
+          <div className="mt-4 space-y-4">
+            {/* Add Comment Button */}
+            <button
+              onClick={() => setShowAddComment(!showAddComment)}
+              className="w-full bg-gradient-to-r from-green-400 to-blue-400 text-white px-4 py-2 border-2 border-black font-bold hover:translate-x-0.5 hover:translate-y-0.5 transition-transform shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+            >
+              + ADD COMMENT
+            </button>
+
+            {showAddComment && (
+              <AddCommentForm
+                postId={post.id}
+                onAddComment={onAddComment}
+                onCancel={() => setShowAddComment(false)}
+              />
+            )}
+
+            {/* Comments List */}
+            {post.comments.map((comment) => (
+              <CommentComponent key={comment.id} comment={comment} />
+            ))}
+
+            {post.comments.length === 0 && !showAddComment && (
+              <p className="text-sm text-gray-500 text-center py-4">No comments yet</p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface CommentComponentProps {
+  comment: Comment;
+}
+
+function CommentComponent({ comment }: CommentComponentProps) {
+  return (
+    <div className="flex gap-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-black">
+      {/* User Info */}
+      <div className="flex flex-col items-center gap-1 min-w-[60px]">
+        <img
+          src={comment.user.avatarUrl}
+          alt={comment.user.username}
+          className="w-12 h-12 border-2 border-black object-cover"
+        />
+        <p className="text-xs font-bold text-center">{comment.user.displayName}</p>
+        <p className="text-xs text-gray-600">@{comment.user.username}</p>
+      </div>
+
+      {/* Comment Content */}
+      <div className="flex-1">
+        {comment.song && (
+          <div className="mb-3 flex gap-2 bg-white border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+            <img
+              src={comment.song.albumArt}
+              alt={comment.song.songTitle}
+              className="w-12 h-12 border-2 border-black object-cover"
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold truncate">{comment.song.songTitle}</p>
+              <p className="text-xs text-gray-600 truncate">{comment.song.artist}</p>
+            </div>
+            <a
+              href={comment.song.spotifyUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="self-center p-2 bg-green-500 hover:bg-green-600 border-2 border-black transition-colors"
+              title="Open in Spotify"
+            >
+              <ExternalLink className="w-4 h-4 text-white" />
+            </a>
+          </div>
+        )}
+        <p className="text-sm text-black">{comment.caption}</p>
+      </div>
+    </div>
+  );
+}
+
+interface AddCommentFormProps {
+  postId: string;
+  onAddComment: (postId: string, comment: Comment) => void;
+  onCancel: () => void;
+}
+
+function AddCommentForm({ postId, onAddComment, onCancel }: AddCommentFormProps) {
+  const [caption, setCaption] = useState('');
+  const [includeSong, setIncludeSong] = useState(false);
+  const [songUrl, setSongUrl] = useState('');
+  const [songTitle, setSongTitle] = useState('');
+  const [artist, setArtist] = useState('');
+
+  const handleSubmit = () => {
+    if (!caption.trim()) return;
+
+    const newComment: Comment = {
+      id: `comment-${Date.now()}`,
+      userId: currentUser.id,
+      user: currentUser,
+      caption: caption.trim(),
+      timestamp: new Date().toISOString(),
+    };
+
+    if (includeSong && songTitle && artist) {
+      newComment.song = {
+        songTitle,
+        artist,
+        albumArt: 'https://images.unsplash.com/photo-1616663395403-2e0052b8e595?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhbGJ1bSUyMGNvdmVyJTIwdmlueWx8ZW58MXx8fHwxNzcwODEwMjE3fDA&ixlib=rb-4.1.0&q=80&w=1080',
+        spotifyUrl: songUrl || 'https://open.spotify.com/track/example',
+      };
+    }
+
+    onAddComment(postId, newComment);
+    setCaption('');
+    setIncludeSong(false);
+    setSongUrl('');
+    setSongTitle('');
+    setArtist('');
+    onCancel();
+  };
+
+  return (
+    <div className="bg-white border-4 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+      <h3 className="text-sm font-bold mb-3">NEW COMMENT</h3>
+      
+      <textarea
+        placeholder="Your comment (max 140 characters)"
+        maxLength={140}
+        value={caption}
+        onChange={(e) => setCaption(e.target.value)}
+        className="w-full bg-yellow-100 border-2 border-black px-3 py-2 mb-3 focus:outline-none focus:border-purple-500 resize-none h-20 text-sm"
+      />
+
+      <label className="flex items-center gap-2 mb-3 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={includeSong}
+          onChange={(e) => setIncludeSong(e.target.checked)}
+          className="w-4 h-4"
+        />
+        <span className="text-sm font-bold">Include a song</span>
+      </label>
+
+      {includeSong && (
+        <div className="space-y-2 mb-3 p-3 bg-blue-50 border-2 border-black">
+          <input
+            type="text"
+            placeholder="Song title"
+            value={songTitle}
+            onChange={(e) => setSongTitle(e.target.value)}
+            className="w-full bg-white border-2 border-black px-3 py-2 focus:outline-none focus:border-purple-500 text-sm"
+          />
+          <input
+            type="text"
+            placeholder="Artist"
+            value={artist}
+            onChange={(e) => setArtist(e.target.value)}
+            className="w-full bg-white border-2 border-black px-3 py-2 focus:outline-none focus:border-purple-500 text-sm"
+          />
+          <input
+            type="text"
+            placeholder="Spotify URL (optional)"
+            value={songUrl}
+            onChange={(e) => setSongUrl(e.target.value)}
+            className="w-full bg-white border-2 border-black px-3 py-2 focus:outline-none focus:border-purple-500 text-sm"
+          />
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <button
+          onClick={onCancel}
+          className="flex-1 bg-gray-200 border-2 border-black px-4 py-2 font-bold hover:bg-gray-300 transition-colors text-sm"
+        >
+          CANCEL
+        </button>
+        <button
+          onClick={handleSubmit}
+          disabled={!caption.trim()}
+          className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-4 py-2 font-bold hover:translate-x-0.5 hover:translate-y-0.5 transition-transform disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+        >
+          POST
+        </button>
+      </div>
     </div>
   );
 }

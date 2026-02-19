@@ -1,9 +1,9 @@
-import { User, SongPost, DailyEmojiSet, Playlist, AlgorithmicRec } from '../types';
+import { User, SongPost, DailyEmojiSet, Playlist, PlaylistSong, AlgorithmicRec, FollowRequest } from '../types';
 
 export const currentUser: User = {
   id: 'user-1',
-  username: 'jdoe_tunes',
-  displayName: 'Jane Doe',
+  username: 'musiclover',
+  displayName: 'Alex Chen',
   bio: 'finding beauty in the mundane through sound',
   avatarUrl: 'https://images.unsplash.com/photo-1501027874987-73e9c32f46a0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwb3J0cmFpdCUyMHBlcnNvbiUyMG11c2ljfGVufDF8fHx8MTc3MDg1OTI3Nnww&ixlib=rb-4.1.0&q=80&w=1080',
   followers: 234,
@@ -14,25 +14,25 @@ export const users: User[] = [
   currentUser,
   {
     id: 'user-2',
-    username: 'mrod_music',
+    username: 'sonicsoul',
     displayName: 'Maya Rodriguez',
-    bio: 'vibes, music, and my life',
+    bio: 'curator of forgotten melodies',
     avatarUrl: 'https://images.unsplash.com/photo-1557315360-6a350ab4eccd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMHdvbWFuJTIwaGVhZHBob25lc3xlbnwxfHx8fDE3NzA4NTkyNzd8MA&ixlib=rb-4.1.0&q=80&w=1080',
     followers: 512,
     following: 203,
   },
   {
     id: 'user-3',
-    username: 'jordan_kim01',
+    username: 'rhythmwright',
     displayName: 'Jordan Kim',
-    bio: 'listening to learn',
+    bio: 'listening is a practice',
     avatarUrl: 'https://images.unsplash.com/photo-1665832102556-ba212924f541?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtYW4lMjB3aXRoJTIwYmVhcmQlMjBjYXN1YWx8ZW58MXx8fHwxNzcwODU5Mjc3fDA&ixlib=rb-4.1.0&q=80&w=1080',
     followers: 389,
     following: 421,
   },
   {
     id: 'user-4',
-    username: 'echochamber_st',
+    username: 'echoesandwaves',
     displayName: 'Sam Taylor',
     bio: 'chasing frequencies in the dark',
     avatarUrl: 'https://images.unsplash.com/photo-1590305173565-f789a8dd6be7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwZXJzb24lMjBnbGFzc2VzJTIwcG9ydHJhaXR8ZW58MXx8fHwxNzcwODU5Mjc4fDA&ixlib=rb-4.1.0&q=80&w=1080',
@@ -43,15 +43,15 @@ export const users: User[] = [
 
 export const dailyEmojiSets: DailyEmojiSet[] = [
   {
-    date: '2026-02-19',
+    date: '2026-02-12',
     emojis: ['🫂', '🌫️', '🔥', '🕊️', '😵‍💫'],
   },
   {
-    date: '2026-02-20',
+    date: '2026-02-11',
     emojis: ['🌧️', '✨', '🌊', '🦋', '🎭'],
   },
   {
-    date: '2026-02-21',
+    date: '2026-02-10',
     emojis: ['🌙', '⚡', '🌸', '🔮', '🎪'],
   },
 ];
@@ -61,62 +61,76 @@ export const songPosts: SongPost[] = [
     id: 'post-1',
     userId: 'user-2',
     user: users[1],
-    date: '2026-02-12',
-    spotifyUrl: 'https://open.spotify.com/track/example1',
-    caption: 'when you need to feel something but don\'t know what',
+    spotifyUrl: 'https://open.spotify.com/track/example',
     albumArt: 'https://images.unsplash.com/photo-1616663395403-2e0052b8e595?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhbGJ1bSUyMGNvdmVyJTIwdmlueWx8ZW58MXx8fHwxNzcwODEwMjE3fDA&ixlib=rb-4.1.0&q=80&w=1080',
     songTitle: 'Seventeen',
     artist: 'Sharon Van Etten',
+    caption: 'Still devastating after all these years. The way her voice breaks on "I used to be seventeen" hits different every time.',
+    date: '2026-02-12',
     reactions: [
-      { emoji: '🫂', userId: 'user-1', userName: 'musiclover' },
-      { emoji: '😵‍💫', userId: 'user-3', userName: 'rhythmwright' },
-      { emoji: '🌫️', userId: 'user-4', userName: 'echoesandwaves' },
+      { emoji: '😢', userId: 'user-3', userName: 'alexjones' },
+      { emoji: '🌧️', userId: 'user-4', userName: 'sammy_m' },
+    ],
+    comments: [
+      {
+        id: 'comment-1',
+        userId: 'user-3',
+        user: users[2],
+        caption: 'This whole album is a masterpiece. Have you heard her live version from NPR Tiny Desk?',
+        song: {
+          songTitle: 'Every Time the Sun Comes Up',
+          artist: 'Sharon Van Etten',
+          albumArt: 'https://images.unsplash.com/photo-1616663395403-2e0052b8e595?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhbGJ1bSUyMGNvdmVyJTIwdmlueWx8ZW58MXx8fHwxNzcwODEwMjE3fDA&ixlib=rb-4.1.0&q=80&w=1080',
+          spotifyUrl: 'https://open.spotify.com/track/example',
+        },
+        timestamp: '2026-02-12T10:30:00Z',
+      },
+      {
+        id: 'comment-2',
+        userId: 'user-4',
+        user: users[3],
+        caption: 'Perfect rainy day song',
+        timestamp: '2026-02-12T11:15:00Z',
+      },
     ],
   },
   {
     id: 'post-2',
     userId: 'user-3',
     user: users[2],
-    date: '2026-02-12',
-    spotifyUrl: 'https://open.spotify.com/track/example2',
-    caption: 'found this at 3am. still can\'t shake it',
+    spotifyUrl: 'https://open.spotify.com/track/example',
     albumArt: 'https://images.unsplash.com/photo-1587731556938-38755b4803a6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxpbmRpZSUyMG11c2ljJTIwYWxidW18ZW58MXx8fHwxNzcwODU5Mjc4fDA&ixlib=rb-4.1.0&q=80&w=1080',
     songTitle: 'Re: Stacks',
     artist: 'Bon Iver',
+    caption: 'The final track. Sometimes you need to sit with the quiet parts.',
+    date: '2026-02-12',
     reactions: [
-      { emoji: '🌫️', userId: 'user-1', userName: 'musiclover' },
-      { emoji: '🕊️', userId: 'user-2', userName: 'sonicsoul' },
+      { emoji: '🌲', userId: 'user-2', userName: 'sarahlikes' },
     ],
+    comments: [],
   },
   {
     id: 'post-3',
     userId: 'user-4',
     user: users[3],
-    date: '2026-02-12',
-    spotifyUrl: 'https://open.spotify.com/track/example3',
-    caption: 'for dancing alone in your kitchen',
+    spotifyUrl: 'https://open.spotify.com/track/example',
     albumArt: 'https://images.unsplash.com/photo-1551288449-085e5252e44e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxlbGVjdHJvbmljJTIwbXVzaWMlMjBhcnR3b3JrfGVufDF8fHx8MTc3MDg1OTI3OXww&ixlib=rb-4.1.0&q=80&w=1080',
     songTitle: 'Midnight City',
     artist: 'M83',
+    caption: 'Driving through the city at 2am with this on repeat. No thoughts, just synths.',
+    date: '2026-02-12',
     reactions: [
-      { emoji: '🔥', userId: 'user-1', userName: 'musiclover' },
-      { emoji: '🔥', userId: 'user-2', userName: 'sonicsoul' },
-      { emoji: '😵‍💫', userId: 'user-3', userName: 'rhythmwright' },
+      { emoji: '✨', userId: 'user-2', userName: 'sarahlikes' },
+      { emoji: '🌃', userId: 'user-3', userName: 'alexjones' },
     ],
-  },
-  {
-    id: 'post-4',
-    userId: 'user-2',
-    user: users[1],
-    date: '2026-02-11',
-    spotifyUrl: 'https://open.spotify.com/track/example4',
-    caption: 'rainy tuesday energy',
-    albumArt: 'https://images.unsplash.com/photo-1681148773098-1460911e25a4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxqYXp6JTIwbXVzaWMlMjByZWNvcmR8ZW58MXx8fHwxNzcwODU5MjgwfDA&ixlib=rb-4.1.0&q=80&w=1080',
-    songTitle: 'Blue in Green',
-    artist: 'Miles Davis',
-    reactions: [
-      { emoji: '🌧️', userId: 'user-1', userName: 'musiclover' },
-      { emoji: '🌊', userId: 'user-3', userName: 'rhythmwright' },
+    comments: [
+      {
+        id: 'comment-3',
+        userId: 'user-2',
+        user: users[1],
+        caption: 'The sax solo!!! Absolute chills',
+        timestamp: '2026-02-12T14:20:00Z',
+      },
     ],
   },
 ];
@@ -171,6 +185,7 @@ export const generateCalendarPosts = (): SongPost[] => {
       songTitle: song.title,
       artist: song.artist,
       reactions: [],
+      comments: [],
     });
   }
 
@@ -314,5 +329,23 @@ export const algorithmicRecs: AlgorithmicRec[] = [
     popularity: 28,
     isIndependent: true,
     language: 'English',
+  },
+];
+
+// Follow requests sent to current user
+export const initialFollowRequests: FollowRequest[] = [
+  {
+    id: 'request-1',
+    fromUser: users[1],
+    toUserId: currentUser.id,
+    status: 'pending',
+    timestamp: '2026-02-12T08:00:00Z',
+  },
+  {
+    id: 'request-2',
+    fromUser: users[2],
+    toUserId: currentUser.id,
+    status: 'pending',
+    timestamp: '2026-02-11T15:30:00Z',
   },
 ];
