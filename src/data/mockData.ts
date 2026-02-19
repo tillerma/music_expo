@@ -2,8 +2,8 @@ import { User, SongPost, DailyEmojiSet, Playlist, AlgorithmicRec } from '../type
 
 export const currentUser: User = {
   id: 'user-1',
-  username: 'musiclover',
-  displayName: 'Alex Chen',
+  username: 'jdoe_tunes',
+  displayName: 'Jane Doe',
   bio: 'finding beauty in the mundane through sound',
   avatarUrl: 'https://images.unsplash.com/photo-1501027874987-73e9c32f46a0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwb3J0cmFpdCUyMHBlcnNvbiUyMG11c2ljfGVufDF8fHx8MTc3MDg1OTI3Nnww&ixlib=rb-4.1.0&q=80&w=1080',
   followers: 234,
@@ -14,25 +14,25 @@ export const users: User[] = [
   currentUser,
   {
     id: 'user-2',
-    username: 'sonicsoul',
+    username: 'mrod_music',
     displayName: 'Maya Rodriguez',
-    bio: 'curator of forgotten melodies',
+    bio: 'vibes, music, and my life',
     avatarUrl: 'https://images.unsplash.com/photo-1557315360-6a350ab4eccd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx5b3VuZyUyMHdvbWFuJTIwaGVhZHBob25lc3xlbnwxfHx8fDE3NzA4NTkyNzd8MA&ixlib=rb-4.1.0&q=80&w=1080',
     followers: 512,
     following: 203,
   },
   {
     id: 'user-3',
-    username: 'rhythmwright',
+    username: 'jordan_kim01',
     displayName: 'Jordan Kim',
-    bio: 'listening is a practice',
+    bio: 'listening to learn',
     avatarUrl: 'https://images.unsplash.com/photo-1665832102556-ba212924f541?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtYW4lMjB3aXRoJTIwYmVhcmQlMjBjYXN1YWx8ZW58MXx8fHwxNzcwODU5Mjc3fDA&ixlib=rb-4.1.0&q=80&w=1080',
     followers: 389,
     following: 421,
   },
   {
     id: 'user-4',
-    username: 'echoesandwaves',
+    username: 'echochamber_st',
     displayName: 'Sam Taylor',
     bio: 'chasing frequencies in the dark',
     avatarUrl: 'https://images.unsplash.com/photo-1590305173565-f789a8dd6be7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwZXJzb24lMjBnbGFzc2VzJTIwcG9ydHJhaXR8ZW58MXx8fHwxNzcwODU5Mjc4fDA&ixlib=rb-4.1.0&q=80&w=1080',
@@ -43,15 +43,15 @@ export const users: User[] = [
 
 export const dailyEmojiSets: DailyEmojiSet[] = [
   {
-    date: '2026-02-12',
+    date: '2026-02-19',
     emojis: ['🫂', '🌫️', '🔥', '🕊️', '😵‍💫'],
   },
   {
-    date: '2026-02-11',
+    date: '2026-02-20',
     emojis: ['🌧️', '✨', '🌊', '🦋', '🎭'],
   },
   {
-    date: '2026-02-10',
+    date: '2026-02-21',
     emojis: ['🌙', '⚡', '🌸', '🔮', '🎪'],
   },
 ];
