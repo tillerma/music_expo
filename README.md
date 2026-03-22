@@ -9,3 +9,6 @@
 
   Run `npm run dev` to start the development server.
   
+  npm install -D @types/react @types/react-dom
+
+  npm install @spotify/web-api-ts-sdk  
