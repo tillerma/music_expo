@@ -1,0 +1,2102 @@
+[
+  {
+    "userId": "user-1",
+    "x": 250.2921,
+    "y": -2.3504,
+    "songToday": {
+      "user_id": "user-1",
+      "songTitle": "HUMBLE.",
+      "artist": "Kendrick Lamar",
+      "features": {
+        "danceability": 0.917798,
+        "energy": 0.636787,
+        "valence": 0.382422,
+        "acousticness": 0.0,
+        "instrumentalness": 0.0,
+        "liveness": 0.098699,
+        "speechiness": 0.259055,
+        "tempo": 146.222218,
+        "loudness": -7.764968
+      }
+    }
+  },
+  {
+    "userId": "user-2",
+    "x": 329.8198,
+    "y": 78.6404,
+    "songToday": {
+      "user_id": "user-2",
+      "songTitle": "Highest In The Room",
+      "artist": "Travis Scott",
+      "features": {
+        "danceability": 0.741906,
+        "energy": 0.624831,
+        "valence": 0.269433,
+        "acousticness": 0.0,
+        "instrumentalness": 0.0,
+        "liveness": 0.185927,
+        "speechiness": 0.20949,
+        "tempo": 149.14287,
+        "loudness": -6.512868
+      }
+    }
+  },
+  {
+    "userId": "user-3",
+    "x": 233.3717,
+    "y": 58.7312,
+    "songToday": {
+      "user_id": "user-3",
+      "songTitle": "Praise God",
+      "artist": "Kanye West",
+      "features": {
+        "danceability": 0.700671,
+        "energy": 0.59953,
+        "valence": 0.428034,
+        "acousticness": 0.051805,
+        "instrumentalness": 0.022167,
+        "liveness": 0.142534,
+        "speechiness": 0.230057,
+        "tempo": 146.509655,
+        "loudness": -6.852092
+      }
+    }
+  },
+  {
+    "userId": "user-4",
+    "x": -80.8297,
+    "y": -313.4984,
+    "songToday": {
+      "user_id": "user-4",
+      "songTitle": "Levels",
+      "artist": "Avicii",
+      "features": {
+        "danceability": 0.752796,
+        "energy": 0.796384,
+        "valence": 0.840318,
+        "acousticness": 0.058359,
+        "instrumentalness": 0.007279,
+        "liveness": 0.109059,
+        "speechiness": 0.044796,
+        "tempo": 126.263447,
+        "loudness": -4.457527
+      }
+    }
+  },
+  {
+    "userId": "user-5",
+    "x": -152.2117,
+    "y": -205.3236,
+    "songToday": {
+      "user_id": "user-5",
+      "songTitle": "The Less I Know The Better",
+      "artist": "Tame Impala",
+      "features": {
+        "danceability": 0.571069,
+        "energy": 0.762856,
+        "valence": 0.784439,
+        "acousticness": 0.045077,
+        "instrumentalness": 0.0,
+        "liveness": 0.089122,
+        "speechiness": 0.017264,
+        "tempo": 102.163363,
+        "loudness": -3.653431
+      }
+    }
+  },
+  {
+    "userId": "user-6",
+    "x": -167.5651,
+    "y": 61.8665,
+    "songToday": {
+      "user_id": "user-6",
+      "songTitle": "drivers license",
+      "artist": "Olivia Rodrigo",
+      "features": {
+        "danceability": 0.46292,
+        "energy": 0.367897,
+        "valence": 0.323407,
+        "acousticness": 0.216556,
+        "instrumentalness": 0.0,
+        "liveness": 0.1202,
+        "speechiness": 0.035329,
+        "tempo": 129.023701,
+        "loudness": -6.678526
+      }
+    }
+  },
+  {
+    "userId": "user-7",
+    "x": -20.0591,
+    "y": -193.189,
+    "songToday": {
+      "user_id": "user-7",
+      "songTitle": "Golden Hour",
+      "artist": "JVKE",
+      "features": {
+        "danceability": 0.716558,
+        "energy": 0.554268,
+        "valence": 0.951658,
+        "acousticness": 0.165917,
+        "instrumentalness": 0.0,
+        "liveness": 0.113944,
+        "speechiness": 0.05294,
+        "tempo": 100.489461,
+        "loudness": -8.317937
+      }
+    }
+  },
+  {
+    "userId": "user-8",
+    "x": -66.9012,
+    "y": -113.1165,
+    "songToday": {
+      "user_id": "user-8",
+      "songTitle": "Leave The Door Open",
+      "artist": "Silk Sonic",
+      "features": {
+        "danceability": 0.679219,
+        "energy": 0.496901,
+        "valence": 0.546199,
+        "acousticness": 0.147497,
+        "instrumentalness": 0.0,
+        "liveness": 0.047669,
+        "speechiness": 0.121836,
+        "tempo": 99.579862,
+        "loudness": -6.88816
+      }
+    }
+  },
+  {
+    "userId": "user-9",
+    "x": -182.0529,
+    "y": -201.5707,
+    "songToday": {
+      "user_id": "user-9",
+      "songTitle": "Scary Monsters",
+      "artist": "Skrillex",
+      "features": {
+        "danceability": 0.446193,
+        "energy": 0.850604,
+        "valence": 0.319674,
+        "acousticness": 0.076313,
+        "instrumentalness": 0.015639,
+        "liveness": 0.176172,
+        "speechiness": 0.02765,
+        "tempo": 132.507513,
+        "loudness": -7.32372
+      }
+    }
+  },
+  {
+    "userId": "user-10",
+    "x": -87.4934,
+    "y": -89.7051,
+    "songToday": {
+      "user_id": "user-10",
+      "songTitle": "Anti-Hero",
+      "artist": "Taylor Swift",
+      "features": {
+        "danceability": 0.524805,
+        "energy": 0.596711,
+        "valence": 0.537069,
+        "acousticness": 0.0,
+        "instrumentalness": 0.014382,
+        "liveness": 0.069121,
+        "speechiness": 0.048641,
+        "tempo": 104.518119,
+        "loudness": -6.748518
+      }
+    }
+  },
+  {
+    "userId": "user-11",
+    "x": -101.8204,
+    "y": -117.5795,
+    "songToday": {
+      "user_id": "user-11",
+      "songTitle": "Borderline",
+      "artist": "Tame Impala",
+      "features": {
+        "danceability": 0.645312,
+        "energy": 0.534596,
+        "valence": 0.797052,
+        "acousticness": 0.043441,
+        "instrumentalness": 0.0,
+        "liveness": 0.124135,
+        "speechiness": 0.0,
+        "tempo": 108.39778,
+        "loudness": -8.649105
+      }
+    }
+  },
+  {
+    "userId": "user-12",
+    "x": -162.7918,
+    "y": -342.8275,
+    "songToday": {
+      "user_id": "user-12",
+      "songTitle": "Circles",
+      "artist": "Post Malone",
+      "features": {
+        "danceability": 0.605922,
+        "energy": 0.755029,
+        "valence": 0.609576,
+        "acousticness": 0.0,
+        "instrumentalness": 0.005885,
+        "liveness": 0.232928,
+        "speechiness": 0.063221,
+        "tempo": 122.575913,
+        "loudness": -2.4583
+      }
+    }
+  },
+  {
+    "userId": "user-13",
+    "x": -273.3586,
+    "y": 340.2358,
+    "songToday": {
+      "user_id": "user-13",
+      "songTitle": "Blauer",
+      "artist": "Bicep",
+      "features": {
+        "danceability": 0.483674,
+        "energy": 0.67424,
+        "valence": 0.405829,
+        "acousticness": 0.0,
+        "instrumentalness": 0.686838,
+        "liveness": 0.12607,
+        "speechiness": 0.0,
+        "tempo": 123.749016,
+        "loudness": -10.011217
+      }
+    }
+  },
+  {
+    "userId": "user-14",
+    "x": -334.1529,
+    "y": 270.3765,
+    "songToday": {
+      "user_id": "user-14",
+      "songTitle": "Teardrop",
+      "artist": "Massive Attack",
+      "features": {
+        "danceability": 0.511593,
+        "energy": 0.606552,
+        "valence": 0.354321,
+        "acousticness": 0.003688,
+        "instrumentalness": 0.56946,
+        "liveness": 0.142609,
+        "speechiness": 0.080585,
+        "tempo": 102.138711,
+        "loudness": -12.055796
+      }
+    }
+  },
+  {
+    "userId": "user-15",
+    "x": -97.4174,
+    "y": 179.7251,
+    "songToday": {
+      "user_id": "user-15",
+      "songTitle": "Skinny Love",
+      "artist": "Bon Iver",
+      "features": {
+        "danceability": 0.403078,
+        "energy": 0.446787,
+        "valence": 0.302886,
+        "acousticness": 0.778179,
+        "instrumentalness": 0.097326,
+        "liveness": 0.126098,
+        "speechiness": 0.017595,
+        "tempo": 115.842156,
+        "loudness": -11.310796
+      }
+    }
+  },
+  {
+    "userId": "user-16",
+    "x": -93.8858,
+    "y": 147.137,
+    "songToday": {
+      "user_id": "user-16",
+      "songTitle": "Fast Car",
+      "artist": "Tracy Chapman",
+      "features": {
+        "danceability": 0.482368,
+        "energy": 0.4659,
+        "valence": 0.523982,
+        "acousticness": 0.735645,
+        "instrumentalness": 0.0,
+        "liveness": 0.047362,
+        "speechiness": 0.05732,
+        "tempo": 107.525222,
+        "loudness": -9.288615
+      }
+    }
+  },
+  {
+    "userId": "user-17",
+    "x": -84.979,
+    "y": 82.4164,
+    "songToday": {
+      "user_id": "user-17",
+      "songTitle": "Run Away to Mars",
+      "artist": "TALK",
+      "features": {
+        "danceability": 0.536238,
+        "energy": 0.394448,
+        "valence": 0.366722,
+        "acousticness": 0.499408,
+        "instrumentalness": 0.037358,
+        "liveness": 0.12146,
+        "speechiness": 0.177604,
+        "tempo": 122.417668,
+        "loudness": -11.492747
+      }
+    }
+  },
+  {
+    "userId": "user-18",
+    "x": -57.633,
+    "y": 251.4569,
+    "songToday": {
+      "user_id": "user-18",
+      "songTitle": "The Night We Met",
+      "artist": "Lord Huron",
+      "features": {
+        "danceability": 0.375589,
+        "energy": 0.22102,
+        "valence": 0.157916,
+        "acousticness": 0.762631,
+        "instrumentalness": 0.007286,
+        "liveness": 0.074523,
+        "speechiness": 0.045214,
+        "tempo": 117.181422,
+        "loudness": -13.031315
+      }
+    }
+  },
+  {
+    "userId": "user-19",
+    "x": -38.2554,
+    "y": -269.974,
+    "songToday": {
+      "user_id": "user-19",
+      "songTitle": "One More Time",
+      "artist": "Daft Punk",
+      "features": {
+        "danceability": 0.891027,
+        "energy": 0.891922,
+        "valence": 0.921472,
+        "acousticness": 0.0,
+        "instrumentalness": 0.0,
+        "liveness": 0.133788,
+        "speechiness": 0.085006,
+        "tempo": 101.048732,
+        "loudness": -5.964204
+      }
+    }
+  },
+  {
+    "userId": "user-20",
+    "x": -121.8129,
+    "y": -228.1532,
+    "songToday": {
+      "user_id": "user-20",
+      "songTitle": "Despacito",
+      "artist": "Luis Fonsi",
+      "features": {
+        "danceability": 0.707756,
+        "energy": 0.78684,
+        "valence": 0.658977,
+        "acousticness": 0.117771,
+        "instrumentalness": 0.008515,
+        "liveness": 0.119407,
+        "speechiness": 0.105586,
+        "tempo": 86.332819,
+        "loudness": -9.241777
+      }
+    }
+  },
+  {
+    "userId": "user-21",
+    "x": 340.081,
+    "y": 13.7521,
+    "songToday": {
+      "user_id": "user-21",
+      "songTitle": "SICKO MODE",
+      "artist": "Travis Scott",
+      "features": {
+        "danceability": 0.888934,
+        "energy": 0.681018,
+        "valence": 0.473235,
+        "acousticness": 0.015683,
+        "instrumentalness": 0.042474,
+        "liveness": 0.128855,
+        "speechiness": 0.262714,
+        "tempo": 154.283146,
+        "loudness": -7.861019
+      }
+    }
+  },
+  {
+    "userId": "user-22",
+    "x": 340.1098,
+    "y": 48.5165,
+    "songToday": {
+      "user_id": "user-22",
+      "songTitle": "Maniac",
+      "artist": "Conan Gray",
+      "features": {
+        "danceability": 0.721247,
+        "energy": 0.544879,
+        "valence": 0.478118,
+        "acousticness": 0.045472,
+        "instrumentalness": 0.038415,
+        "liveness": 0.185144,
+        "speechiness": 0.199749,
+        "tempo": 132.361049,
+        "loudness": -5.075756
+      }
+    }
+  },
+  {
+    "userId": "user-23",
+    "x": 244.343,
+    "y": 28.7942,
+    "songToday": {
+      "user_id": "user-23",
+      "songTitle": "DNA.",
+      "artist": "Kendrick Lamar",
+      "features": {
+        "danceability": 0.678748,
+        "energy": 0.682917,
+        "valence": 0.43448,
+        "acousticness": 0.0,
+        "instrumentalness": 0.0,
+        "liveness": 0.141987,
+        "speechiness": 0.31322,
+        "tempo": 132.454912,
+        "loudness": -7.348025
+      }
+    }
+  },
+  {
+    "userId": "user-24",
+    "x": -107.0756,
+    "y": -328.6269,
+    "songToday": {
+      "user_id": "user-24",
+      "songTitle": "Bad Habits",
+      "artist": "Ed Sheeran",
+      "features": {
+        "danceability": 0.77328,
+        "energy": 0.942624,
+        "valence": 0.781528,
+        "acousticness": 0.022412,
+        "instrumentalness": 0.0,
+        "liveness": 0.214271,
+        "speechiness": 0.025604,
+        "tempo": 135.442398,
+        "loudness": -3.796117
+      }
+    }
+  },
+  {
+    "userId": "user-25",
+    "x": -191.4459,
+    "y": -171.0205,
+    "songToday": {
+      "user_id": "user-25",
+      "songTitle": "Dreams",
+      "artist": "Fleetwood Mac",
+      "features": {
+        "danceability": 0.552389,
+        "energy": 0.690118,
+        "valence": 0.61358,
+        "acousticness": 0.0,
+        "instrumentalness": 0.024096,
+        "liveness": 0.100135,
+        "speechiness": 0.066888,
+        "tempo": 118.548982,
+        "loudness": -5.317084
+      }
+    }
+  },
+  {
+    "userId": "user-26",
+    "x": -172.3079,
+    "y": 100.602,
+    "songToday": {
+      "user_id": "user-26",
+      "songTitle": "Happier Than Ever",
+      "artist": "Billie Eilish",
+      "features": {
+        "danceability": 0.49301,
+        "energy": 0.25921,
+        "valence": 0.238274,
+        "acousticness": 0.178021,
+        "instrumentalness": 0.013702,
+        "liveness": 0.060979,
+        "speechiness": 0.024302,
+        "tempo": 112.948247,
+        "loudness": -6.952213
+      }
+    }
+  },
+  {
+    "userId": "user-27",
+    "x": -98.0064,
+    "y": -206.375,
+    "songToday": {
+      "user_id": "user-27",
+      "songTitle": "Essence",
+      "artist": "Wizkid",
+      "features": {
+        "danceability": 0.80611,
+        "energy": 0.640104,
+        "valence": 0.596171,
+        "acousticness": 0.214222,
+        "instrumentalness": 0.111096,
+        "liveness": 0.121915,
+        "speechiness": 0.015393,
+        "tempo": 105.200212,
+        "loudness": -8.598826
+      }
+    }
+  },
+  {
+    "userId": "user-28",
+    "x": -80.6151,
+    "y": -181.3842,
+    "songToday": {
+      "user_id": "user-28",
+      "songTitle": "nostalgic",
+      "artist": "ROLE MODEL",
+      "features": {
+        "danceability": 0.72384,
+        "energy": 0.60774,
+        "valence": 0.657744,
+        "acousticness": 0.099952,
+        "instrumentalness": 0.0,
+        "liveness": 0.101545,
+        "speechiness": 0.007046,
+        "tempo": 111.109851,
+        "loudness": -7.585181
+      }
+    }
+  },
+  {
+    "userId": "user-29",
+    "x": -171.1335,
+    "y": -254.4656,
+    "songToday": {
+      "user_id": "user-29",
+      "songTitle": "Blinding Lights",
+      "artist": "The Weeknd",
+      "features": {
+        "danceability": 0.432606,
+        "energy": 0.749899,
+        "valence": 0.315476,
+        "acousticness": 0.068881,
+        "instrumentalness": 0.0,
+        "liveness": 0.124053,
+        "speechiness": 0.021047,
+        "tempo": 152.132546,
+        "loudness": -6.725055
+      }
+    }
+  },
+  {
+    "userId": "user-30",
+    "x": -161.8994,
+    "y": -119.2111,
+    "songToday": {
+      "user_id": "user-30",
+      "songTitle": "Pursuit Of Happiness",
+      "artist": "Kid Cudi",
+      "features": {
+        "danceability": 0.574475,
+        "energy": 0.660203,
+        "valence": 0.592708,
+        "acousticness": 0.04586,
+        "instrumentalness": 0.0,
+        "liveness": 0.09299,
+        "speechiness": 0.045444,
+        "tempo": 116.02554,
+        "loudness": -9.465964
+      }
+    }
+  },
+  {
+    "userId": "user-31",
+    "x": -190.6418,
+    "y": -138.6168,
+    "songToday": {
+      "user_id": "user-31",
+      "songTitle": "Let It Happen",
+      "artist": "Tame Impala",
+      "features": {
+        "danceability": 0.615886,
+        "energy": 0.796641,
+        "valence": 0.649054,
+        "acousticness": 0.088978,
+        "instrumentalness": 0.025273,
+        "liveness": 0.104913,
+        "speechiness": 0.05236,
+        "tempo": 123.641346,
+        "loudness": -7.815513
+      }
+    }
+  },
+  {
+    "userId": "user-32",
+    "x": -137.7604,
+    "y": -323.8719,
+    "songToday": {
+      "user_id": "user-32",
+      "songTitle": "Electric Feel",
+      "artist": "MGMT",
+      "features": {
+        "danceability": 0.617739,
+        "energy": 0.748107,
+        "valence": 0.57937,
+        "acousticness": 0.0,
+        "instrumentalness": 0.037988,
+        "liveness": 0.190048,
+        "speechiness": 0.055968,
+        "tempo": 122.15866,
+        "loudness": -2.668664
+      }
+    }
+  },
+  {
+    "userId": "user-33",
+    "x": -247.2465,
+    "y": 317.5301,
+    "songToday": {
+      "user_id": "user-33",
+      "songTitle": "Glue",
+      "artist": "Bicep",
+      "features": {
+        "danceability": 0.565222,
+        "energy": 0.706146,
+        "valence": 0.369172,
+        "acousticness": 0.018128,
+        "instrumentalness": 0.69112,
+        "liveness": 0.143127,
+        "speechiness": 0.030916,
+        "tempo": 142.343148,
+        "loudness": -8.45334
+      }
+    }
+  },
+  {
+    "userId": "user-34",
+    "x": -311.3881,
+    "y": 329.7959,
+    "songToday": {
+      "user_id": "user-34",
+      "songTitle": "Dissolved Girl",
+      "artist": "Massive Attack",
+      "features": {
+        "danceability": 0.532944,
+        "energy": 0.352874,
+        "valence": 0.205604,
+        "acousticness": 0.037829,
+        "instrumentalness": 0.56133,
+        "liveness": 0.125871,
+        "speechiness": 0.040358,
+        "tempo": 106.074131,
+        "loudness": -13.447781
+      }
+    }
+  },
+  {
+    "userId": "user-35",
+    "x": -58.5191,
+    "y": 137.1079,
+    "songToday": {
+      "user_id": "user-35",
+      "songTitle": "Cherry Wine",
+      "artist": "Hozier",
+      "features": {
+        "danceability": 0.38409,
+        "energy": 0.356943,
+        "valence": 0.40143,
+        "acousticness": 0.790014,
+        "instrumentalness": 0.033884,
+        "liveness": 0.150609,
+        "speechiness": 0.05544,
+        "tempo": 97.606522,
+        "loudness": -12.293639
+      }
+    }
+  },
+  {
+    "userId": "user-36",
+    "x": -134.1997,
+    "y": 208.3086,
+    "songToday": {
+      "user_id": "user-36",
+      "songTitle": "Death Bed",
+      "artist": "Powfu",
+      "features": {
+        "danceability": 0.543928,
+        "energy": 0.427734,
+        "valence": 0.558791,
+        "acousticness": 0.717044,
+        "instrumentalness": 0.0,
+        "liveness": 0.097006,
+        "speechiness": 0.039078,
+        "tempo": 122.445383,
+        "loudness": -11.168673
+      }
+    }
+  },
+  {
+    "userId": "user-37",
+    "x": -86.0892,
+    "y": 116.1317,
+    "songToday": {
+      "user_id": "user-37",
+      "songTitle": "Snooze",
+      "artist": "SZA",
+      "features": {
+        "danceability": 0.576272,
+        "energy": 0.392146,
+        "valence": 0.200742,
+        "acousticness": 0.435718,
+        "instrumentalness": 0.016186,
+        "liveness": 0.099813,
+        "speechiness": 0.146828,
+        "tempo": 123.116883,
+        "loudness": -12.957128
+      }
+    }
+  },
+  {
+    "userId": "user-38",
+    "x": -36.9355,
+    "y": 172.3065,
+    "songToday": {
+      "user_id": "user-38",
+      "songTitle": "Heather",
+      "artist": "Conan Gray",
+      "features": {
+        "danceability": 0.498832,
+        "energy": 0.349526,
+        "valence": 0.493426,
+        "acousticness": 0.69693,
+        "instrumentalness": 0.0,
+        "liveness": 0.13358,
+        "speechiness": 0.050213,
+        "tempo": 121.012997,
+        "loudness": -12.627016
+      }
+    }
+  },
+  {
+    "userId": "user-39",
+    "x": -92.0665,
+    "y": -234.59,
+    "songToday": {
+      "user_id": "user-39",
+      "songTitle": "Con Calma",
+      "artist": "Daddy Yankee",
+      "features": {
+        "danceability": 0.765282,
+        "energy": 0.810252,
+        "valence": 0.667415,
+        "acousticness": 0.071171,
+        "instrumentalness": 0.018845,
+        "liveness": 0.152448,
+        "speechiness": 0.122554,
+        "tempo": 101.545135,
+        "loudness": -2.603771
+      }
+    }
+  },
+  {
+    "userId": "user-40",
+    "x": -22.0324,
+    "y": -243.9774,
+    "songToday": {
+      "user_id": "user-40",
+      "songTitle": "Ojitos Lindos",
+      "artist": "Bad Bunny",
+      "features": {
+        "danceability": 0.726302,
+        "energy": 0.680129,
+        "valence": 0.695208,
+        "acousticness": 0.175736,
+        "instrumentalness": 0.0,
+        "liveness": 0.143838,
+        "speechiness": 0.038031,
+        "tempo": 81.459524,
+        "loudness": -5.807669
+      }
+    }
+  },
+  {
+    "userId": "user-41",
+    "x": 281.1312,
+    "y": -10.6468,
+    "songToday": {
+      "user_id": "user-41",
+      "songTitle": "Money",
+      "artist": "Cardi B",
+      "features": {
+        "danceability": 0.86057,
+        "energy": 0.64539,
+        "valence": 0.484266,
+        "acousticness": 0.055212,
+        "instrumentalness": 0.0,
+        "liveness": 0.134969,
+        "speechiness": 0.251153,
+        "tempo": 138.777643,
+        "loudness": -6.842055
+      }
+    }
+  },
+  {
+    "userId": "user-42",
+    "x": 302.8597,
+    "y": 95.485,
+    "songToday": {
+      "user_id": "user-42",
+      "songTitle": "Mask Off",
+      "artist": "Future",
+      "features": {
+        "danceability": 0.873864,
+        "energy": 0.593629,
+        "valence": 0.345589,
+        "acousticness": 0.0,
+        "instrumentalness": 0.008343,
+        "liveness": 0.166686,
+        "speechiness": 0.195234,
+        "tempo": 141.92819,
+        "loudness": -5.639744
+      }
+    }
+  },
+  {
+    "userId": "user-43",
+    "x": 244.8029,
+    "y": 88.5378,
+    "songToday": {
+      "user_id": "user-43",
+      "songTitle": "Therefore I Am",
+      "artist": "Billie Eilish",
+      "features": {
+        "danceability": 0.667196,
+        "energy": 0.603866,
+        "valence": 0.770288,
+        "acousticness": 0.0,
+        "instrumentalness": 0.0,
+        "liveness": 0.127122,
+        "speechiness": 0.294323,
+        "tempo": 135.451381,
+        "loudness": -4.219973
+      }
+    }
+  },
+  {
+    "userId": "user-44",
+    "x": -141.429,
+    "y": -262.7942,
+    "songToday": {
+      "user_id": "user-44",
+      "songTitle": "Physical",
+      "artist": "Dua Lipa",
+      "features": {
+        "danceability": 0.57276,
+        "energy": 0.94839,
+        "valence": 0.739489,
+        "acousticness": 0.034039,
+        "instrumentalness": 0.022248,
+        "liveness": 0.127253,
+        "speechiness": 0.090881,
+        "tempo": 136.627033,
+        "loudness": -4.516927
+      }
+    }
+  },
+  {
+    "userId": "user-45",
+    "x": -126.6956,
+    "y": -197.8069,
+    "songToday": {
+      "user_id": "user-45",
+      "songTitle": "Electric Love",
+      "artist": "B\u00d8RNS",
+      "features": {
+        "danceability": 0.605702,
+        "energy": 0.685826,
+        "valence": 0.692057,
+        "acousticness": 0.003179,
+        "instrumentalness": 0.0,
+        "liveness": 0.09366,
+        "speechiness": 0.082203,
+        "tempo": 125.730679,
+        "loudness": -6.248637
+      }
+    }
+  },
+  {
+    "userId": "user-46",
+    "x": -145.0274,
+    "y": 117.4187,
+    "songToday": {
+      "user_id": "user-46",
+      "songTitle": "XO Tour Llif3",
+      "artist": "Lil Uzi Vert",
+      "features": {
+        "danceability": 0.388351,
+        "energy": 0.42664,
+        "valence": 0.097014,
+        "acousticness": 0.20535,
+        "instrumentalness": 0.0,
+        "liveness": 0.130555,
+        "speechiness": 0.080623,
+        "tempo": 129.669786,
+        "loudness": -10.977253
+      }
+    }
+  },
+  {
+    "userId": "user-47",
+    "x": -42.8063,
+    "y": -133.8671,
+    "songToday": {
+      "user_id": "user-47",
+      "songTitle": "Pick Up Your Feelings",
+      "artist": "Jazmine Sullivan",
+      "features": {
+        "danceability": 0.799282,
+        "energy": 0.47609,
+        "valence": 0.647216,
+        "acousticness": 0.159575,
+        "instrumentalness": 0.0,
+        "liveness": 0.033325,
+        "speechiness": 0.027839,
+        "tempo": 102.846722,
+        "loudness": -8.097985
+      }
+    }
+  },
+  {
+    "userId": "user-48",
+    "x": -106.7437,
+    "y": -177.1284,
+    "songToday": {
+      "user_id": "user-48",
+      "songTitle": "Lean On",
+      "artist": "Major Lazer",
+      "features": {
+        "danceability": 0.775738,
+        "energy": 0.583171,
+        "valence": 0.59962,
+        "acousticness": 0.132165,
+        "instrumentalness": 0.034873,
+        "liveness": 0.13329,
+        "speechiness": 0.042378,
+        "tempo": 108.568051,
+        "loudness": -8.405629
+      }
+    }
+  },
+  {
+    "userId": "user-49",
+    "x": -201.0354,
+    "y": -261.1576,
+    "songToday": {
+      "user_id": "user-49",
+      "songTitle": "Mr. Brightside",
+      "artist": "The Killers",
+      "features": {
+        "danceability": 0.420315,
+        "energy": 0.935267,
+        "valence": 0.355434,
+        "acousticness": 0.022506,
+        "instrumentalness": 0.0,
+        "liveness": 0.115476,
+        "speechiness": 0.012342,
+        "tempo": 138.393386,
+        "loudness": -3.540397
+      }
+    }
+  },
+  {
+    "userId": "user-50",
+    "x": -155.4681,
+    "y": -88.0058,
+    "songToday": {
+      "user_id": "user-50",
+      "songTitle": "Somebody That I Used To Know",
+      "artist": "Gotye",
+      "features": {
+        "danceability": 0.570108,
+        "energy": 0.576415,
+        "valence": 0.576808,
+        "acousticness": 0.104847,
+        "instrumentalness": 0.037538,
+        "liveness": 0.094933,
+        "speechiness": 0.087027,
+        "tempo": 122.628105,
+        "loudness": -10.517578
+      }
+    }
+  },
+  {
+    "userId": "user-51",
+    "x": -108.8044,
+    "y": -147.9396,
+    "songToday": {
+      "user_id": "user-51",
+      "songTitle": "Dynamite",
+      "artist": "BTS",
+      "features": {
+        "danceability": 0.670211,
+        "energy": 0.793044,
+        "valence": 0.687154,
+        "acousticness": 0.048741,
+        "instrumentalness": 0.013378,
+        "liveness": 0.10387,
+        "speechiness": 0.026197,
+        "tempo": 123.457634,
+        "loudness": -9.360931
+      }
+    }
+  },
+  {
+    "userId": "user-52",
+    "x": -177.9453,
+    "y": -282.4084,
+    "songToday": {
+      "user_id": "user-52",
+      "songTitle": "Butter",
+      "artist": "BTS",
+      "features": {
+        "danceability": 0.77289,
+        "energy": 0.859523,
+        "valence": 0.80903,
+        "acousticness": 0.0,
+        "instrumentalness": 0.053054,
+        "liveness": 0.153595,
+        "speechiness": 0.0,
+        "tempo": 117.728776,
+        "loudness": -2.516038
+      }
+    }
+  },
+  {
+    "userId": "user-53",
+    "x": -268.9622,
+    "y": 257.8213,
+    "songToday": {
+      "user_id": "user-53",
+      "songTitle": "Strobe",
+      "artist": "deadmau5",
+      "features": {
+        "danceability": 0.410829,
+        "energy": 0.70327,
+        "valence": 0.397727,
+        "acousticness": 0.048793,
+        "instrumentalness": 0.705135,
+        "liveness": 0.126622,
+        "speechiness": 0.028417,
+        "tempo": 113.326619,
+        "loudness": -9.563311
+      }
+    }
+  },
+  {
+    "userId": "user-54",
+    "x": -306.9584,
+    "y": 251.541,
+    "songToday": {
+      "user_id": "user-54",
+      "songTitle": "Lucid Dreams",
+      "artist": "Juice WRLD",
+      "features": {
+        "danceability": 0.500144,
+        "energy": 0.454622,
+        "valence": 0.203244,
+        "acousticness": 0.010746,
+        "instrumentalness": 0.576765,
+        "liveness": 0.148075,
+        "speechiness": 0.020128,
+        "tempo": 92.038554,
+        "loudness": -14.743135
+      }
+    }
+  },
+  {
+    "userId": "user-55",
+    "x": -102.3261,
+    "y": 211.0828,
+    "songToday": {
+      "user_id": "user-55",
+      "songTitle": "Landslide",
+      "artist": "Fleetwood Mac",
+      "features": {
+        "danceability": 0.398398,
+        "energy": 0.330407,
+        "valence": 0.481281,
+        "acousticness": 0.86864,
+        "instrumentalness": 0.094565,
+        "liveness": 0.086534,
+        "speechiness": 0.065077,
+        "tempo": 90.20228,
+        "loudness": -12.765128
+      }
+    }
+  },
+  {
+    "userId": "user-56",
+    "x": -125.5236,
+    "y": 144.063,
+    "songToday": {
+      "user_id": "user-56",
+      "songTitle": "Moon River",
+      "artist": "Frank Ocean",
+      "features": {
+        "danceability": 0.53061,
+        "energy": 0.361982,
+        "valence": 0.625443,
+        "acousticness": 0.739722,
+        "instrumentalness": 0.036365,
+        "liveness": 0.168499,
+        "speechiness": 0.078166,
+        "tempo": 112.155193,
+        "loudness": -10.538927
+      }
+    }
+  },
+  {
+    "userId": "user-57",
+    "x": -96.5303,
+    "y": 46.8538,
+    "songToday": {
+      "user_id": "user-57",
+      "songTitle": "Falling",
+      "artist": "Trevor Daniel",
+      "features": {
+        "danceability": 0.573427,
+        "energy": 0.375355,
+        "valence": 0.327901,
+        "acousticness": 0.3883,
+        "instrumentalness": 0.0,
+        "liveness": 0.113043,
+        "speechiness": 0.166916,
+        "tempo": 105.037461,
+        "loudness": -13.641566
+      }
+    }
+  },
+  {
+    "userId": "user-58",
+    "x": -31.4369,
+    "y": 212.4515,
+    "songToday": {
+      "user_id": "user-58",
+      "songTitle": "Holocene",
+      "artist": "Bon Iver",
+      "features": {
+        "danceability": 0.452663,
+        "energy": 0.333366,
+        "valence": 0.254558,
+        "acousticness": 0.813344,
+        "instrumentalness": 0.0,
+        "liveness": 0.096251,
+        "speechiness": 0.049061,
+        "tempo": 117.609678,
+        "loudness": -13.069799
+      }
+    }
+  },
+  {
+    "userId": "user-59",
+    "x": -62.4564,
+    "y": -288.6458,
+    "songToday": {
+      "user_id": "user-59",
+      "songTitle": "Levitating",
+      "artist": "Dua Lipa",
+      "features": {
+        "danceability": 0.797109,
+        "energy": 0.88829,
+        "valence": 0.846565,
+        "acousticness": 0.079735,
+        "instrumentalness": 0.022003,
+        "liveness": 0.167528,
+        "speechiness": 0.123969,
+        "tempo": 106.003793,
+        "loudness": -3.988662
+      }
+    }
+  },
+  {
+    "userId": "user-60",
+    "x": -37.5442,
+    "y": -217.5991,
+    "songToday": {
+      "user_id": "user-60",
+      "songTitle": "telepat\u00eda",
+      "artist": "Kali Uchis",
+      "features": {
+        "danceability": 0.729458,
+        "energy": 0.768859,
+        "valence": 0.766351,
+        "acousticness": 0.141374,
+        "instrumentalness": 0.0,
+        "liveness": 0.071957,
+        "speechiness": 0.06058,
+        "tempo": 90.785112,
+        "loudness": -7.193558
+      }
+    }
+  },
+  {
+    "userId": "user-61",
+    "x": 311.5221,
+    "y": -0.6319,
+    "songToday": {
+      "user_id": "user-61",
+      "songTitle": "Numb Numb Juice",
+      "artist": "ScHoolboy Q",
+      "features": {
+        "danceability": 0.933418,
+        "energy": 0.735229,
+        "valence": 0.431536,
+        "acousticness": 0.050533,
+        "instrumentalness": 0.006214,
+        "liveness": 0.128583,
+        "speechiness": 0.214337,
+        "tempo": 132.653449,
+        "loudness": -7.249998
+      }
+    }
+  },
+  {
+    "userId": "user-62",
+    "x": 302.2722,
+    "y": 61.3299,
+    "songToday": {
+      "user_id": "user-62",
+      "songTitle": "rockstar",
+      "artist": "Post Malone",
+      "features": {
+        "danceability": 0.772732,
+        "energy": 0.57182,
+        "valence": 0.276967,
+        "acousticness": 0.005877,
+        "instrumentalness": 0.009073,
+        "liveness": 0.136142,
+        "speechiness": 0.140548,
+        "tempo": 137.752918,
+        "loudness": -7.252596
+      }
+    }
+  },
+  {
+    "userId": "user-63",
+    "x": 275.4333,
+    "y": 79.884,
+    "songToday": {
+      "user_id": "user-63",
+      "songTitle": "Rich Flex",
+      "artist": "Drake & 21 Savage",
+      "features": {
+        "danceability": 0.706654,
+        "energy": 0.674335,
+        "valence": 0.44472,
+        "acousticness": 0.073582,
+        "instrumentalness": 0.0,
+        "liveness": 0.140126,
+        "speechiness": 0.313855,
+        "tempo": 124.198158,
+        "loudness": -8.170932
+      }
+    }
+  },
+  {
+    "userId": "user-64",
+    "x": -93.1648,
+    "y": -285.8996,
+    "songToday": {
+      "user_id": "user-64",
+      "songTitle": "Shivers",
+      "artist": "Ed Sheeran",
+      "features": {
+        "danceability": 0.821659,
+        "energy": 0.874445,
+        "valence": 0.857066,
+        "acousticness": 0.071726,
+        "instrumentalness": 0.036305,
+        "liveness": 0.168923,
+        "speechiness": 0.013404,
+        "tempo": 122.713698,
+        "loudness": -3.636529
+      }
+    }
+  },
+  {
+    "userId": "user-65",
+    "x": -161.9506,
+    "y": -179.8122,
+    "songToday": {
+      "user_id": "user-65",
+      "songTitle": "Save Your Tears",
+      "artist": "The Weeknd",
+      "features": {
+        "danceability": 0.472779,
+        "energy": 0.665299,
+        "valence": 0.751357,
+        "acousticness": 0.0,
+        "instrumentalness": 0.0,
+        "liveness": 0.16604,
+        "speechiness": 0.05691,
+        "tempo": 114.042994,
+        "loudness": -5.214224
+      }
+    }
+  },
+  {
+    "userId": "user-66",
+    "x": -136.4544,
+    "y": 48.4973,
+    "songToday": {
+      "user_id": "user-66",
+      "songTitle": "Ribs",
+      "artist": "Lorde",
+      "features": {
+        "danceability": 0.497227,
+        "energy": 0.421572,
+        "valence": 0.371086,
+        "acousticness": 0.128919,
+        "instrumentalness": 0.011625,
+        "liveness": 0.164636,
+        "speechiness": 0.083114,
+        "tempo": 136.013749,
+        "loudness": -9.446593
+      }
+    }
+  },
+  {
+    "userId": "user-67",
+    "x": -30.0253,
+    "y": -163.8272,
+    "songToday": {
+      "user_id": "user-67",
+      "songTitle": "Peaches",
+      "artist": "Justin Bieber",
+      "features": {
+        "danceability": 0.703253,
+        "energy": 0.541736,
+        "valence": 0.690327,
+        "acousticness": 0.119321,
+        "instrumentalness": 0.00659,
+        "liveness": 0.152937,
+        "speechiness": 0.0,
+        "tempo": 99.387892,
+        "loudness": -4.615594
+      }
+    }
+  },
+  {
+    "userId": "user-68",
+    "x": -80.9616,
+    "y": -139.9573,
+    "songToday": {
+      "user_id": "user-68",
+      "songTitle": "Africa",
+      "artist": "Toto",
+      "features": {
+        "danceability": 0.670189,
+        "energy": 0.520968,
+        "valence": 0.557556,
+        "acousticness": 0.121442,
+        "instrumentalness": 0.0,
+        "liveness": 0.158492,
+        "speechiness": 0.08007,
+        "tempo": 107.656594,
+        "loudness": -8.219911
+      }
+    }
+  },
+  {
+    "userId": "user-69",
+    "x": -151.1586,
+    "y": -233.185,
+    "songToday": {
+      "user_id": "user-69",
+      "songTitle": "505",
+      "artist": "Arctic Monkeys",
+      "features": {
+        "danceability": 0.468964,
+        "energy": 0.89684,
+        "valence": 0.292528,
+        "acousticness": 0.0,
+        "instrumentalness": 0.006751,
+        "liveness": 0.098839,
+        "speechiness": 0.0,
+        "tempo": 133.131062,
+        "loudness": -3.036522
+      }
+    }
+  },
+  {
+    "userId": "user-70",
+    "x": -117.7194,
+    "y": -80.5442,
+    "songToday": {
+      "user_id": "user-70",
+      "songTitle": "Running Up That Hill",
+      "artist": "Kate Bush",
+      "features": {
+        "danceability": 0.640641,
+        "energy": 0.672359,
+        "valence": 0.570781,
+        "acousticness": 0.018358,
+        "instrumentalness": 0.0,
+        "liveness": 0.098859,
+        "speechiness": 0.031554,
+        "tempo": 116.279827,
+        "loudness": -8.423176
+      }
+    }
+  },
+  {
+    "userId": "user-71",
+    "x": -135.948,
+    "y": -136.5799,
+    "songToday": {
+      "user_id": "user-71",
+      "songTitle": "Heat Waves",
+      "artist": "Glass Animals",
+      "features": {
+        "danceability": 0.590439,
+        "energy": 0.569836,
+        "valence": 0.596002,
+        "acousticness": 0.071271,
+        "instrumentalness": 0.0,
+        "liveness": 0.092684,
+        "speechiness": 0.009194,
+        "tempo": 114.671868,
+        "loudness": -8.475785
+      }
+    }
+  },
+  {
+    "userId": "user-72",
+    "x": -174.3472,
+    "y": -313.7743,
+    "songToday": {
+      "user_id": "user-72",
+      "songTitle": "good 4 u",
+      "artist": "Olivia Rodrigo",
+      "features": {
+        "danceability": 0.507323,
+        "energy": 0.858053,
+        "valence": 0.782953,
+        "acousticness": 0.0,
+        "instrumentalness": 0.0,
+        "liveness": 0.216792,
+        "speechiness": 0.075774,
+        "tempo": 130.748507,
+        "loudness": -3.477224
+      }
+    }
+  },
+  {
+    "userId": "user-73",
+    "x": -261.6117,
+    "y": 288.9542,
+    "songToday": {
+      "user_id": "user-73",
+      "songTitle": "Motion Sickness",
+      "artist": "Phoebe Bridgers",
+      "features": {
+        "danceability": 0.581778,
+        "energy": 0.57686,
+        "valence": 0.406453,
+        "acousticness": 0.0,
+        "instrumentalness": 0.688098,
+        "liveness": 0.119767,
+        "speechiness": 0.010424,
+        "tempo": 123.51937,
+        "loudness": -9.862905
+      }
+    }
+  },
+  {
+    "userId": "user-74",
+    "x": -319.4844,
+    "y": 298.8143,
+    "songToday": {
+      "user_id": "user-74",
+      "songTitle": "Take Me to Church",
+      "artist": "Hozier",
+      "features": {
+        "danceability": 0.495309,
+        "energy": 0.450604,
+        "valence": 0.202625,
+        "acousticness": 0.0,
+        "instrumentalness": 0.623079,
+        "liveness": 0.128804,
+        "speechiness": 0.027421,
+        "tempo": 115.05913,
+        "loudness": -12.29396
+      }
+    }
+  },
+  {
+    "userId": "user-75",
+    "x": -96.8838,
+    "y": 242.7089,
+    "songToday": {
+      "user_id": "user-75",
+      "songTitle": "Flightless Bird",
+      "artist": "Iron & Wine",
+      "features": {
+        "danceability": 0.428149,
+        "energy": 0.311658,
+        "valence": 0.361717,
+        "acousticness": 0.883551,
+        "instrumentalness": 0.072066,
+        "liveness": 0.115835,
+        "speechiness": 0.0,
+        "tempo": 102.563451,
+        "loudness": -11.935729
+      }
+    }
+  },
+  {
+    "userId": "user-76",
+    "x": -154.6239,
+    "y": 158.3805,
+    "songToday": {
+      "user_id": "user-76",
+      "songTitle": "Ocean Eyes",
+      "artist": "Billie Eilish",
+      "features": {
+        "danceability": 0.438638,
+        "energy": 0.506331,
+        "valence": 0.520612,
+        "acousticness": 0.746725,
+        "instrumentalness": 0.0,
+        "liveness": 0.096984,
+        "speechiness": 0.008144,
+        "tempo": 94.23622,
+        "loudness": -11.752771
+      }
+    }
+  },
+  {
+    "userId": "user-77",
+    "x": -115.8202,
+    "y": 104.4847,
+    "songToday": {
+      "user_id": "user-77",
+      "songTitle": "Good Days",
+      "artist": "SZA",
+      "features": {
+        "danceability": 0.486922,
+        "energy": 0.465723,
+        "valence": 0.285662,
+        "acousticness": 0.446558,
+        "instrumentalness": 0.043735,
+        "liveness": 0.093318,
+        "speechiness": 0.159316,
+        "tempo": 115.040716,
+        "loudness": -11.594629
+      }
+    }
+  },
+  {
+    "userId": "user-78",
+    "x": -72.2208,
+    "y": 223.4245,
+    "songToday": {
+      "user_id": "user-78",
+      "songTitle": "Lovely",
+      "artist": "Billie Eilish",
+      "features": {
+        "danceability": 0.287181,
+        "energy": 0.281069,
+        "valence": 0.096472,
+        "acousticness": 0.763057,
+        "instrumentalness": 0.018013,
+        "liveness": 0.136601,
+        "speechiness": 0.051579,
+        "tempo": 111.025333,
+        "loudness": -12.910089
+      }
+    }
+  },
+  {
+    "userId": "user-79",
+    "x": -110.5314,
+    "y": -258.064,
+    "songToday": {
+      "user_id": "user-79",
+      "songTitle": "Money In The Grave",
+      "artist": "Drake",
+      "features": {
+        "danceability": 0.983249,
+        "energy": 0.779286,
+        "valence": 0.652918,
+        "acousticness": 0.089447,
+        "instrumentalness": 0.0,
+        "liveness": 0.160045,
+        "speechiness": 0.11783,
+        "tempo": 100.364746,
+        "loudness": -3.904408
+      }
+    }
+  },
+  {
+    "userId": "user-80",
+    "x": -69.0493,
+    "y": -215.2129,
+    "songToday": {
+      "user_id": "user-80",
+      "songTitle": "N95",
+      "artist": "Kendrick Lamar",
+      "features": {
+        "danceability": 0.807031,
+        "energy": 0.759964,
+        "valence": 0.716737,
+        "acousticness": 0.045597,
+        "instrumentalness": 0.0,
+        "liveness": 0.127319,
+        "speechiness": 0.110922,
+        "tempo": 86.232043,
+        "loudness": -5.821871
+      }
+    }
+  },
+  {
+    "userId": "user-81",
+    "x": 313.3825,
+    "y": 31.3218,
+    "songToday": {
+      "user_id": "user-81",
+      "songTitle": "Titanium",
+      "artist": "David Guetta",
+      "features": {
+        "danceability": 0.843513,
+        "energy": 0.843931,
+        "valence": 0.408364,
+        "acousticness": 0.127678,
+        "instrumentalness": 0.004047,
+        "liveness": 0.114996,
+        "speechiness": 0.220596,
+        "tempo": 134.137355,
+        "loudness": -5.615642
+      }
+    }
+  },
+  {
+    "userId": "user-82",
+    "x": 283.3152,
+    "y": 20.9676,
+    "songToday": {
+      "user_id": "user-82",
+      "songTitle": "Bad Guy",
+      "artist": "Billie Eilish",
+      "features": {
+        "danceability": 0.856052,
+        "energy": 0.560477,
+        "valence": 0.314098,
+        "acousticness": 0.0,
+        "instrumentalness": 0.0,
+        "liveness": 0.119332,
+        "speechiness": 0.200617,
+        "tempo": 133.067358,
+        "loudness": -5.935419
+      }
+    }
+  },
+  {
+    "userId": "user-83",
+    "x": 268.676,
+    "y": 49.0971,
+    "songToday": {
+      "user_id": "user-83",
+      "songTitle": "Roses",
+      "artist": "SAINt JHN",
+      "features": {
+        "danceability": 0.670429,
+        "energy": 0.66568,
+        "valence": 0.50481,
+        "acousticness": 0.0,
+        "instrumentalness": 0.059996,
+        "liveness": 0.135909,
+        "speechiness": 0.328301,
+        "tempo": 120.297597,
+        "loudness": -5.869303
+      }
+    }
+  },
+  {
+    "userId": "user-84",
+    "x": -121.4818,
+    "y": -287.0229,
+    "songToday": {
+      "user_id": "user-84",
+      "songTitle": "As Long As You Love Me",
+      "artist": "Carly Rae Jepsen",
+      "features": {
+        "danceability": 0.616268,
+        "energy": 0.884682,
+        "valence": 0.859385,
+        "acousticness": 0.010621,
+        "instrumentalness": 0.034747,
+        "liveness": 0.131952,
+        "speechiness": 0.087009,
+        "tempo": 116.490583,
+        "loudness": -1.934512
+      }
+    }
+  },
+  {
+    "userId": "user-85",
+    "x": -134.3553,
+    "y": -166.8016,
+    "songToday": {
+      "user_id": "user-85",
+      "songTitle": "Midnight City",
+      "artist": "M83",
+      "features": {
+        "danceability": 0.532938,
+        "energy": 0.655785,
+        "valence": 0.601861,
+        "acousticness": 0.0,
+        "instrumentalness": 0.014694,
+        "liveness": 0.08863,
+        "speechiness": 0.058028,
+        "tempo": 115.893329,
+        "loudness": -3.752868
+      }
+    }
+  },
+  {
+    "userId": "user-86",
+    "x": -144.8911,
+    "y": 84.3979,
+    "songToday": {
+      "user_id": "user-86",
+      "songTitle": "Bohemian Rhapsody",
+      "artist": "Queen",
+      "features": {
+        "danceability": 0.471744,
+        "energy": 0.488321,
+        "valence": 0.158919,
+        "acousticness": 0.247084,
+        "instrumentalness": 0.021316,
+        "liveness": 0.072651,
+        "speechiness": 0.032887,
+        "tempo": 129.568767,
+        "loudness": -11.030213
+      }
+    }
+  },
+  {
+    "userId": "user-87",
+    "x": -50.9885,
+    "y": -190.1152,
+    "songToday": {
+      "user_id": "user-87",
+      "songTitle": "Sunflower",
+      "artist": "Post Malone",
+      "features": {
+        "danceability": 0.530505,
+        "energy": 0.51858,
+        "valence": 0.879202,
+        "acousticness": 0.165323,
+        "instrumentalness": 0.02021,
+        "liveness": 0.108797,
+        "speechiness": 0.080367,
+        "tempo": 94.371744,
+        "loudness": -8.71553
+      }
+    }
+  },
+  {
+    "userId": "user-88",
+    "x": -59.7505,
+    "y": -160.3305,
+    "songToday": {
+      "user_id": "user-88",
+      "songTitle": "Kill Bill",
+      "artist": "SZA",
+      "features": {
+        "danceability": 0.637891,
+        "energy": 0.527699,
+        "valence": 0.67887,
+        "acousticness": 0.073194,
+        "instrumentalness": 0.038727,
+        "liveness": 0.090625,
+        "speechiness": 0.072632,
+        "tempo": 103.29348,
+        "loudness": -5.874343
+      }
+    }
+  },
+  {
+    "userId": "user-89",
+    "x": -191.4059,
+    "y": -230.7906,
+    "songToday": {
+      "user_id": "user-89",
+      "songTitle": "505",
+      "artist": "Arctic Monkeys",
+      "features": {
+        "danceability": 0.508209,
+        "energy": 0.873927,
+        "valence": 0.321032,
+        "acousticness": 0.032443,
+        "instrumentalness": 0.0,
+        "liveness": 0.109459,
+        "speechiness": 0.0,
+        "tempo": 136.328844,
+        "loudness": -5.753944
+      }
+    }
+  },
+  {
+    "userId": "user-90",
+    "x": -131.4476,
+    "y": -107.4705,
+    "songToday": {
+      "user_id": "user-90",
+      "songTitle": "Watermelon Sugar",
+      "artist": "Harry Styles",
+      "features": {
+        "danceability": 0.502133,
+        "energy": 0.674083,
+        "valence": 0.69929,
+        "acousticness": 0.106017,
+        "instrumentalness": 0.038907,
+        "liveness": 0.12993,
+        "speechiness": 0.048483,
+        "tempo": 101.716802,
+        "loudness": -7.766887
+      }
+    }
+  },
+  {
+    "userId": "user-91",
+    "x": -162.772,
+    "y": -150.3928,
+    "songToday": {
+      "user_id": "user-91",
+      "songTitle": "Creepin'",
+      "artist": "Metro Boomin",
+      "features": {
+        "danceability": 0.650346,
+        "energy": 0.658224,
+        "valence": 0.558203,
+        "acousticness": 0.156039,
+        "instrumentalness": 0.0,
+        "liveness": 0.045827,
+        "speechiness": 0.0,
+        "tempo": 110.820821,
+        "loudness": -10.208589
+      }
+    }
+  },
+  {
+    "userId": "user-92",
+    "x": -150.1649,
+    "y": -295.0372,
+    "songToday": {
+      "user_id": "user-92",
+      "songTitle": "Shake It Off",
+      "artist": "Taylor Swift",
+      "features": {
+        "danceability": 0.68889,
+        "energy": 0.918656,
+        "valence": 0.785877,
+        "acousticness": 0.0,
+        "instrumentalness": 0.013243,
+        "liveness": 0.119235,
+        "speechiness": 0.033269,
+        "tempo": 128.352574,
+        "loudness": -7.841254
+      }
+    }
+  },
+  {
+    "userId": "user-93",
+    "x": -285.6461,
+    "y": 310.8887,
+    "songToday": {
+      "user_id": "user-93",
+      "songTitle": "Better Now",
+      "artist": "Post Malone",
+      "features": {
+        "danceability": 0.532229,
+        "energy": 0.606511,
+        "valence": 0.438118,
+        "acousticness": 0.047592,
+        "instrumentalness": 0.691927,
+        "liveness": 0.135471,
+        "speechiness": 0.081558,
+        "tempo": 128.864998,
+        "loudness": -7.495952
+      }
+    }
+  },
+  {
+    "userId": "user-94",
+    "x": -292.2975,
+    "y": 279.7702,
+    "songToday": {
+      "user_id": "user-94",
+      "songTitle": "Robbery",
+      "artist": "Juice WRLD",
+      "features": {
+        "danceability": 0.420886,
+        "energy": 0.623076,
+        "valence": 0.195475,
+        "acousticness": 0.019633,
+        "instrumentalness": 0.600768,
+        "liveness": 0.109447,
+        "speechiness": 0.065337,
+        "tempo": 98.632415,
+        "loudness": -12.183804
+      }
+    }
+  },
+  {
+    "userId": "user-95",
+    "x": -68.9786,
+    "y": 166.5378,
+    "songToday": {
+      "user_id": "user-95",
+      "songTitle": "The Night Will Always Win",
+      "artist": "MCR",
+      "features": {
+        "danceability": 0.464378,
+        "energy": 0.365318,
+        "valence": 0.321382,
+        "acousticness": 0.844002,
+        "instrumentalness": 0.047491,
+        "liveness": 0.106898,
+        "speechiness": 0.0,
+        "tempo": 89.930661,
+        "loudness": -12.379994
+      }
+    }
+  },
+  {
+    "userId": "user-96",
+    "x": -128.8182,
+    "y": 176.8935,
+    "songToday": {
+      "user_id": "user-96",
+      "songTitle": "Coffee",
+      "artist": "beabadoobee",
+      "features": {
+        "danceability": 0.471721,
+        "energy": 0.39234,
+        "valence": 0.600499,
+        "acousticness": 0.757654,
+        "instrumentalness": 0.0,
+        "liveness": 0.107624,
+        "speechiness": 0.042396,
+        "tempo": 110.328153,
+        "loudness": -9.762075
+      }
+    }
+  },
+  {
+    "userId": "user-97",
+    "x": -115.3346,
+    "y": 72.5244,
+    "songToday": {
+      "user_id": "user-97",
+      "songTitle": "Easy On Me",
+      "artist": "Adele",
+      "features": {
+        "danceability": 0.68011,
+        "energy": 0.438406,
+        "valence": 0.171578,
+        "acousticness": 0.439608,
+        "instrumentalness": 0.0,
+        "liveness": 0.121602,
+        "speechiness": 0.232298,
+        "tempo": 130.265984,
+        "loudness": -11.756558
+      }
+    }
+  },
+  {
+    "userId": "user-98",
+    "x": -58.1448,
+    "y": 195.7977,
+    "songToday": {
+      "user_id": "user-98",
+      "songTitle": "Legends Never Die",
+      "artist": "Juice WRLD",
+      "features": {
+        "danceability": 0.379465,
+        "energy": 0.485307,
+        "valence": 0.0,
+        "acousticness": 0.720497,
+        "instrumentalness": 0.015886,
+        "liveness": 0.060317,
+        "speechiness": 0.009391,
+        "tempo": 113.421595,
+        "loudness": -12.060291
+      }
+    }
+  },
+  {
+    "userId": "user-99",
+    "x": -78.2958,
+    "y": -260.8885,
+    "songToday": {
+      "user_id": "user-99",
+      "songTitle": "despu\u00e9s de la playa",
+      "artist": "Bad Bunny",
+      "features": {
+        "danceability": 0.850061,
+        "energy": 0.784615,
+        "valence": 0.822158,
+        "acousticness": 0.095549,
+        "instrumentalness": 0.045379,
+        "liveness": 0.081535,
+        "speechiness": 0.150028,
+        "tempo": 111.976912,
+        "loudness": -4.933345
+      }
+    }
+  },
+  {
+    "userId": "user-100",
+    "x": -54.0054,
+    "y": -242.8822,
+    "songToday": {
+      "user_id": "user-100",
+      "songTitle": "R U Mine?",
+      "artist": "Arctic Monkeys",
+      "features": {
+        "danceability": 0.760429,
+        "energy": 0.814501,
+        "valence": 0.814991,
+        "acousticness": 0.0,
+        "instrumentalness": 0.020578,
+        "liveness": 0.134404,
+        "speechiness": 0.076577,
+        "tempo": 109.575241,
+        "loudness": -6.948184
+      }
+    }
+  }
+]
