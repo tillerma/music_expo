@@ -210,16 +210,25 @@ export function FeedPage() {
     await fetchPosts();
   };
 
-  const handleAddComment = (postId: string, comment: Comment) => {
-    setPosts(posts.map(post => {
-      if (post.id === postId) {
-        return {
-          ...post,
-          comments: [...post.comments, comment],
-        };
-      }
-      return post;
-    }));
+  const handleAddComment = async (postId: string, comment: Comment) => {
+    const { error } = await supabase.from('comments').insert({
+      id: comment.id,
+      post_id: postId,
+      user_id: comment.userId,
+      caption: comment.caption,
+      song_title: comment.song?.songTitle ?? null,
+      artist: comment.song?.artist ?? null,
+      album_art: comment.song?.albumArt ?? null,
+      spotify_url: comment.song?.spotifyUrl ?? null,
+      timestamp: comment.timestamp,
+    });
+
+    if (error) {
+      console.error('Error adding comment:', error);
+      return;
+    }
+
+    await fetchPosts();
   };
 
   const today = new Date();
