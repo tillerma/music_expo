@@ -16,13 +16,12 @@ export function FeedPage() {
   // const [posts, setPosts] = useState(initialPosts.filter(p => p.date === '2026-02-12'));
   const [posts, setPosts] = useState<SongPost[]>([]);
   const [showNewPost, setShowNewPost] = useState(false);
+  // for today's post
+  const [spotifyUrl, setSpotifyUrl] = useState('');
+  const [caption, setCaption] = useState('');
+  const [isPosting, setIsPosting] = useState(false);
 
-  useEffect(() => {
-    async function fetchPosts() {
-      // const { data, error } = await supabase
-      //   .from('posts')
-      //   .select('*')
-      //   .order('created_at', { ascending: false });
+  async function fetchPosts() {
       const { data, error } = await supabase
       .from('posts')
       .select(`
@@ -71,6 +70,7 @@ export function FeedPage() {
       setPosts(mappedPosts);
     }
 
+  useEffect(() => {
     fetchPosts();
   }, []);
 
@@ -90,6 +90,42 @@ export function FeedPage() {
   //   }
   //   getSbPosts()
   // }, [])
+
+  async function handleCreatePost() {
+    if (!spotifyUrl.trim() || !caption.trim()) return;
+
+    try {
+      setIsPosting(true);
+
+      const newPost = {
+        id: crypto.randomUUID(), // will change
+        user_id: 'user-1', // temporary until auth integrated
+        spotify_url: spotifyUrl.trim(),
+        album_art: 'https://placehold.co/200x200',
+        song_title: 'Song Title from Spotty',
+        artist: 'Artist from Spotty',
+        caption: caption.trim(),
+        post_date: new Date().toISOString().split('T')[0],
+      };
+
+      const { error } = await supabase
+        .from('posts')
+        .insert(newPost);
+
+      if (error) {
+        console.error('Error creating post:', error);
+        return;
+      }
+
+      setSpotifyUrl('');
+      setCaption('');
+      setShowNewPost(false);
+
+      await fetchPosts();
+    } finally {
+      setIsPosting(false);
+    }
+  }
 
   const handleReaction = (postId: string, emoji: string) => {
     setPosts(posts.map(post => {
@@ -164,11 +200,15 @@ export function FeedPage() {
             <input
               type="text"
               placeholder="Spotify URL"
+              value={spotifyUrl}
+              onChange={(e) => setSpotifyUrl(e.target.value)}
               className="w-full bg-yellow-100 border-2 border-black px-4 py-2 mb-3 focus:outline-none focus:border-purple-500"
             />
             <textarea
               placeholder="Caption (max 140 characters)"
               maxLength={140}
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
               className="w-full bg-yellow-100 border-2 border-black px-4 py-2 mb-4 focus:outline-none focus:border-purple-500 resize-none h-24"
             />
             <div className="flex gap-2">
@@ -178,11 +218,18 @@ export function FeedPage() {
               >
                 CANCEL
               </button>
-              <button
+              {/* <button
                 onClick={() => setShowNewPost(false)}
                 className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-4 py-2 font-bold hover:translate-x-0.5 hover:translate-y-0.5 transition-transform"
               >
                 POST
+              </button> */}
+              <button
+                  onClick={handleCreatePost}
+                  disabled={isPosting || !spotifyUrl.trim() || !caption.trim()}
+                  className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-4 py-2 font-bold hover:translate-x-0.5 hover:translate-y-0.5 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isPosting ? 'POSTING...' : 'POST'}
               </button>
             </div>
           </div>
