@@ -1,9 +1,10 @@
 import type { User } from '../types';
 import { allUsers } from './allUsers';
 
+
 export function getAppCurrentUser(): User {
   try {
-    const stored = sessionStorage.getItem('app_current_user_id');
+    const stored = window.localStorage.getItem('app_current_user_id');
     if (stored) {
       const found = allUsers.find(u => u.id === stored || u.username === stored);
       if (found) return found;
@@ -26,14 +27,15 @@ export function getAppCurrentUser(): User {
     // Fallback to the first user in allUsers
     return allUsers[0];
   } catch (err) {
-    // In non-browser contexts, sessionStorage may be unavailable — fallback
+    // In non-browser contexts, localStorage may be unavailable — fallback
     return allUsers[0];
   }
 }
 
+
 export function setAppCurrentUserId(id: string) {
   try {
-    sessionStorage.setItem('app_current_user_id', id);
+    window.localStorage.setItem('app_current_user_id', id);
   } catch (err) {
     // ignore
   }

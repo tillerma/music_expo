@@ -4,94 +4,64 @@ import { useEffect, useState } from 'react';
 import { handleCallback, isLoggedIn } from '../utils/spotifyAuth';
 import { getCurrentUser } from '../api/spotify';
 import { allUsers } from '../data/allUsers';
-import { setAppCurrentUserId } from '../data/authUser';
+import { setAppCurrentUserId, getAppCurrentUser } from '../data/authUser';
+
 
 export function Root() {
   const location = useLocation();
-
+  const navigate = useNavigate();
   const [authReady, setAuthReady] = useState(false);
 
-  const navItems = [
-    { path: '/', icon: Home, label: 'Feed' },
-    { path: '/explore', icon: Compass, label: 'Music Map' },
-    { path: '/playlists', icon: Music, label: 'Playlists' },
-    { path: '/profile/musiclover', icon: User, label: 'Profile' },
-  ];
-
-  const isActive = (path: string) => {
-    if (path === '/') {
-      return location.pathname === '/';
+  // Prevent unauthenticated users from visiting any page except /login
+  useEffect(() => {
+    // If not on /login and no current user, redirect to /login
+    const isLoginPage = location.pathname === '/login';
+    const currentUserId = window.localStorage.getItem('app_current_user_id');
+    if (!isLoginPage && !currentUserId) {
+      navigate('/login', { replace: true });
+      return;
     }
-    return location.pathname.startsWith(path);
-  };
-
-  const navigate = useNavigate();
+    setAuthReady(true);
+  }, [location.pathname, navigate]);
 
   // Handle Spotify redirect with ?code=...: exchange for token, then check local user DB
- useEffect(() => {
-  (async () => {
-    try {
-      // handleCallback() returns true only if ?code= was in the URL,
-      // and internally handles the exchange + URL cleanup + state validation.
-      const wasCallback = await handleCallback();
+  useEffect(() => {
+    (async () => {
+      try {
+        // handleCallback() returns true only if ?code= was in the URL,
+        // and internally handles the exchange + URL cleanup + state validation.
+        const wasCallback = await handleCallback();
 
-      if (wasCallback || isLoggedIn()) {
-        const spotifyProfile = await getCurrentUser();
-        const spotifyId = spotifyProfile.id;
-        const found = allUsers.find(
-          u => u.id === spotifyId || u.username === spotifyId
-        );
-
-        if (!found) {
-          sessionStorage.setItem(
-            'pending_spotify_profile',
-            JSON.stringify(spotifyProfile)
+        if (wasCallback || isLoggedIn()) {
+          const spotifyProfile = await getCurrentUser();
+          const spotifyId = spotifyProfile.id;
+          const found = allUsers.find(
+            u => u.id === spotifyId || u.username === spotifyId
           );
-          navigate('/create-account');
-        } else {
-          setAppCurrentUserId(found.id);
-          navigate('/');
-        }
-      }
-    } catch (err) {
-      console.error('Error handling Spotify redirect', err);
-    } finally {
-      setAuthReady(true);
-    }
-  })();
-}, [navigate]);
 
-if (!authReady) {
-  return <div>Loading...</div>;
-}
-
-  return (
-  <div className={location.pathname === '/login' ? 'min-h-screen bg-black text-white' : 'min-h-screen bg-white text-black'}>
-      <div className="max-w-2xl mx-auto pb-20">
-        <Outlet />
-      </div>
-
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-black">
-        <div className="max-w-2xl mx-auto flex justify-around items-center h-16 px-4">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(item.path);
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex flex-col items-center gap-1 transition-colors ${
-                  active ? 'text-black' : 'text-gray-400'
-                }`}
-              >
-                <Icon className="w-6 h-6" strokeWidth={active ? 2.5 : 2} />
-                <span className="text-xs font-medium">{item.label}</span>
-              </Link>
+          if (!found) {
+            sessionStorage.setItem(
+              'pending_spotify_profile',
+              JSON.stringify(spotifyProfile)
             );
-          })}
-        </div>
-      </nav>
-    </div>
-  );
+            navigate('/create-account');
+          } else {
+            setAppCurrentUserId(found.id);
+            // Store id and username in localStorage for session enforcement
+            window.localStorage.setItem('app_current_user_id', found.id);
+            window.localStorage.setItem('app_current_username', found.username);
+            navigate('/');
+          }
+        }
+      } catch (err) {
+        console.error('Error handling Spotify redirect', err);
+      }
+    })();
+  }, [navigate]);
+
+  if (!authReady) {
+    return <div>Loading...</div>;
+  }
+
+  // ...existing code...
 }

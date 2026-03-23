@@ -343,8 +343,7 @@ export function logout(): void {
 // ─── Authenticated Fetch Wrapper ──────────────────────────────────────────────
 
 /**
- * Make an authenticated request to the Spotify Web API.
- *
+\
  * Handles:
  *   • Automatic Bearer token injection
  *   • Token refresh on 401
