@@ -1,5 +1,10 @@
-import { Outlet, Link, useLocation } from 'react-router';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router';
 import { Home, Compass, Music, User } from 'lucide-react';
+import { useEffect } from 'react';
+import { exchangeCodeForToken } from '../utils/spotifyAuth';
+import { getCurrentUser } from '../api/spotify';
+import { allUsers } from '../data/allUsers';
+import { setAppCurrentUserId } from '../data/authUser';
 
 export function Root() {
   const location = useLocation();
@@ -18,8 +23,51 @@ export function Root() {
     return location.pathname.startsWith(path);
   };
 
+  const navigate = useNavigate();
+
+  // Handle Spotify redirect with ?code=...: exchange for token, then check local user DB
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if (!code) return;
+
+    (async () => {
+      try {
+        // Exchange code for token (stores spotify_token in sessionStorage)
+        await exchangeCodeForToken(code);
+
+        // Remove code from URL
+        params.delete('code');
+        const newUrl = window.location.pathname + (params.toString() ? `?${params.toString()}` : '');
+        window.history.replaceState({}, '', newUrl);
+
+        // Fetch Spotify profile
+        const spotifyProfile = await getCurrentUser();
+        const spotifyId = (spotifyProfile as any).id;
+
+        // Check local DB for a user with this id or username
+        const found = allUsers.find(u => u.id === spotifyId || u.username === spotifyId);
+        if (!found) {
+          // Store spotify profile temporarily and redirect to create-account
+          sessionStorage.setItem('pending_spotify_profile', JSON.stringify(spotifyProfile));
+          navigate('/create-account');
+        } else {
+          // Existing user — mark as current and navigate to feed
+          setAppCurrentUserId(found.id);
+          navigate('/');
+        }
+      } catch (err) {
+        console.error('Error handling Spotify redirect', err);
+        // Still remove code param so user isn't stuck
+        params.delete('code');
+        const newUrl = window.location.pathname + (params.toString() ? `?${params.toString()}` : '');
+        window.history.replaceState({}, '', newUrl);
+      }
+    })();
+  }, [navigate]);
+
   return (
-    <div className="min-h-screen bg-white text-black">
+  <div className={location.pathname === '/login' ? 'min-h-screen bg-black text-white' : 'min-h-screen bg-white text-black'}>
       <div className="max-w-2xl mx-auto pb-20">
         <Outlet />
       </div>

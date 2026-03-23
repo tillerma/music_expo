@@ -1,14 +1,8 @@
 import { User, SongPost, DailyEmojiSet, Playlist, PlaylistSong, AlgorithmicRec, FollowRequest } from '../types';
+import { getAppCurrentUser } from './authUser';
+import { allUsers as initialUsers } from './allUsers';
 
-export const currentUser: User = {
-  id: 'user-1',
-  username: 'musiclover',
-  displayName: 'Alex Chen',
-  bio: 'finding beauty in the mundane through sound',
-  avatarUrl: 'https://images.unsplash.com/photo-1501027874987-73e9c32f46a0?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxwb3J0cmFpdCUyMHBlcnNvbiUyMG11c2ljfGVufDF8fHx8MTc3MDg1OTI3Nnww&ixlib=rb-4.1.0&q=80&w=1080',
-  followers: 234,
-  following: 187,
-};
+export const currentUser: User = getAppCurrentUser();
 
 export const users: User[] = [
   currentUser,

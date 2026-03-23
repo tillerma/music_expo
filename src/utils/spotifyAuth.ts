@@ -10,6 +10,20 @@ const SCOPES = [
   'playlist-read-private',
 ];
 
+// Quick runtime validation for environment config.
+function ensureClientConfig() {
+  const missing = !CLIENT_ID || CLIENT_ID === 'YOUR_CLIENT_ID' || CLIENT_ID.toLowerCase().includes('your client');
+  const missingRedirect = !REDIRECT_URI || REDIRECT_URI === 'YOUR_REDIRECT_URI';
+  if (missing || missingRedirect) {
+    const parts: string[] = [];
+    if (missing) parts.push('VITE_SPOTIFY_CLIENT_ID is not set or is a placeholder');
+    if (missingRedirect) parts.push('VITE_REDIRECT_URI is not set or is a placeholder');
+    const msg = `Spotify auth misconfigured: ${parts.join('; ')}. See README and set these in your .env or host environment.`;
+    console.error(msg);
+    throw new Error(msg);
+  }
+}
+
 // ─── PKCE Helpers (Approach 2's spec-correct implementation) ──
 function base64UrlEncode(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
@@ -41,6 +55,7 @@ async function generateCodeChallenge(verifier: string): Promise<string> {
 
 // ─── Auth Functions ────────────────────────────────────────
 export async function loginWithSpotify(showDialog = false): Promise<void> {
+  ensureClientConfig();
   const verifier = generateCodeVerifier();
   const challenge = await generateCodeChallenge(verifier);
 
@@ -57,7 +72,14 @@ export async function loginWithSpotify(showDialog = false): Promise<void> {
     show_dialog: String(showDialog), // from Approach 2 — forces re-login prompt if true
   });
 
-  window.location.href = `https://accounts.spotify.com/authorize?${params}`;
+  const authUrl = `https://accounts.spotify.com/authorize?${params}`;
+  try {
+    // eslint-disable-next-line no-console
+    console.log('[spotifyAuth] redirecting to Spotify authorize URL:', authUrl, 'CLIENT_ID=', CLIENT_ID);
+  } catch (err) {
+    // ignore
+  }
+  window.location.assign(authUrl);
 }
 
 export async function exchangeCodeForToken(code: string): Promise<void> {

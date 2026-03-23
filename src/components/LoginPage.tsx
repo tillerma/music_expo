@@ -46,8 +46,15 @@ export function LoginPage() {
 
         /* ── Animated rainbow background ───────────────────────── */
         .lyra-bg {
-          position: absolute;
-          inset: 0;
+          /* Use fixed positioning so the rainbow fills the entire viewport
+             even if the login component is rendered inside a constrained container. */
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          width: 100vw;
+          height: 100vh;
           background: linear-gradient(
             120deg,
             #ff0080,
@@ -69,20 +76,7 @@ export function LoginPage() {
           100% { background-position: 0% 50%; }
         }
 
-        /* ── CRT scanline overlay ──────────────────────────────── */
-        .lyra-scanlines {
-          position: absolute;
-          inset: 0;
-          background: repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent 2px,
-            rgba(0, 0, 0, 0.08) 2px,
-            rgba(0, 0, 0, 0.08) 4px
-          );
-          pointer-events: none;
-          z-index: 1;
-        }
+        /* CRT scanlines removed for cleaner rainbow background */
 
         /* ── Floating star decorations ─────────────────────────── */
         .lyra-stars {
@@ -290,8 +284,7 @@ export function LoginPage() {
         {/* Animated rainbow background */}
         <div className="lyra-bg" />
 
-        {/* CRT scanline overlay */}
-        <div className="lyra-scanlines" />
+  {/* (scanline overlay removed) */}
 
         {/* Floating star decorations */}
         <div className="lyra-stars" aria-hidden="true">
