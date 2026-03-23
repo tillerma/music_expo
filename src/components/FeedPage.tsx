@@ -74,23 +74,6 @@ export function FeedPage() {
     fetchPosts();
   }, []);
 
-  // const [sbPosts, setSbPosts] = useState([])
-  // useEffect(() => {
-  //   async function getSbPosts() {
-  //     const { data, error } = await supabase
-  //       .from('posts')
-  //       .select('*')
-  //       .order('created_at', { ascending: false })
-
-  //     if (error) {
-  //       console.error(error)
-  //     } else {
-  //       setSbPosts(data)
-  //     }
-  //   }
-  //   getSbPosts()
-  // }, [])
-
   async function handleCreatePost() {
     if (!spotifyUrl.trim() || !caption.trim()) return;
 
@@ -159,6 +142,13 @@ export function FeedPage() {
     }));
   };
 
+  const today = new Date();
+  const formattedDate = today.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -166,7 +156,7 @@ export function FeedPage() {
         <div className="px-4 py-4 flex justify-between items-center">
           <div>
             <h1 className="text-xl font-bold">Today's Songs</h1>
-            <p className="text-sm text-gray-600">February 12, 2026</p>
+            <p className="text-sm text-gray-600">{formattedDate}</p>
           </div>
           <button
             onClick={() => setShowNewPost(true)}
@@ -218,12 +208,6 @@ export function FeedPage() {
               >
                 CANCEL
               </button>
-              {/* <button
-                onClick={() => setShowNewPost(false)}
-                className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-4 py-2 font-bold hover:translate-x-0.5 hover:translate-y-0.5 transition-transform"
-              >
-                POST
-              </button> */}
               <button
                   onClick={handleCreatePost}
                   disabled={isPosting || !spotifyUrl.trim() || !caption.trim()}
@@ -235,19 +219,6 @@ export function FeedPage() {
           </div>
         </div>
       )}
-
-      {/* OG SUPABASE TEST DATA */}
-      {/* <div className="p-4 border-b-4 border-red-500">
-        <h2 className="font-bold mb-2">Supabase Test Data:</h2>
-        {sbPosts.map((post) => (
-          <div key={post.id} className="mb-2 p-2 border">
-            <p>👤 {post.username}</p>
-            <p>🎵 {post.song.name} by {post.song.artist}</p>
-            <p>{post.user_msg}</p>
-            <p>Link: {post.song.link}</p>
-          </div>
-        ))}
-      </div> */}
 
       {/* Feed */}
       <div className="divide-y-2 divide-gray-300">
