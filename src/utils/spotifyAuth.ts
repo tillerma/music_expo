@@ -8,6 +8,8 @@ const SCOPES = [
   'user-read-email',
   'user-read-playback-state',
   'playlist-read-private',
+  'user-top-read',              
+  'user-read-recently-played',
 ];
 
 // ─── PKCE Helpers (Approach 2's spec-correct implementation) ──

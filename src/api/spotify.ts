@@ -26,3 +26,32 @@ export const searchTracks = (query: string) =>
 
 export const getTopTracks = () =>
   spotifyFetch<{ items: SpotifyTrack[] }>('/me/top/tracks');
+
+export const getAudioFeatures = (trackId: string) =>
+  spotifyFetch<{
+    danceability: number;
+    energy: number;
+    valence: number;
+    acousticness: number;
+    instrumentalness: number;
+    liveness: number;
+    speechiness: number;
+    tempo: number;
+    loudness: number;
+  }>(`/audio-features/${trackId}`);
+
+export const getAudioFeaturesForTracks = (trackIds: string[]) =>
+  spotifyFetch<{
+    audio_features: Array<{
+      id: string;
+      danceability: number;
+      energy: number;
+      valence: number;
+      acousticness: number;
+      instrumentalness: number;
+      liveness: number;
+      speechiness: number;
+      tempo: number;
+      loudness: number;
+    }>
+  }>(`/audio-features?ids=${trackIds.join(',')}`);
