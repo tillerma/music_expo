@@ -318,7 +318,7 @@ export function FeedPage() {
           <SongPostComponent
             key={post.id}
             post={post}
-            emojiSet={todayEmojiSet.emojis}
+            emojiSet={emojiSet}//{todayEmojiSet.emojis}
             onReaction={handleReaction}
             onAddComment={handleAddComment}
           />
