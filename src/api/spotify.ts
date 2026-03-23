@@ -10,7 +10,7 @@ export const getUserPlaylists = () =>
     .then(r => r.json() as Promise<{ items: SpotifyPlaylist[] }>);
 
 export const searchTracks = (query: string) =>
-  spotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track`)
+  spotifyFetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=20`)
     .then(r => r.json() as Promise<{ tracks: { items: SpotifyTrack[] } }>);
 
 export const getTopTracks = () =>
