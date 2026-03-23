@@ -20,6 +20,8 @@ export function FeedPage() {
   const [spotifyUrl, setSpotifyUrl] = useState('');
   const [caption, setCaption] = useState('');
   const [isPosting, setIsPosting] = useState(false);
+  // emoji set of day
+  const [emojiSet, setEmojiSet] = useState<string[]>([]);
 
   async function fetchPosts() {
       const { data, error } = await supabase
@@ -70,8 +72,29 @@ export function FeedPage() {
       setPosts(mappedPosts);
     }
 
+  async function fetchTodayEmojis() {
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const { data, error } = await supabase
+      .from('daily_emoji_sets')
+      .select('*')
+      .eq('date', todayStr)
+      .single();
+
+    console.log('EMOJI DATA:', data);
+    console.log('EMOJI ERROR:', error);
+
+    if (error) {
+      console.error('Error fetching emojis:', error);
+      return;
+    }
+
+    setEmojiSet(data?.emojis ?? []);
+  }
+
   useEffect(() => {
     fetchPosts();
+    fetchTodayEmojis();
   }, []);
 
   async function handleCreatePost() {
@@ -169,17 +192,20 @@ export function FeedPage() {
         {/* Today's Emoji Set */}
         <div className="px-4 pb-3">
           <p className="text-xs text-gray-600 mb-2 font-bold">TODAY'S EMOTIONAL PALETTE:</p>
+
           <div className="flex gap-2">
-            {todayEmojiSet.emojis.map((emoji, i) => (
-              <div
-                key={i}
+          {emojiSet.map((emoji, index) => (
+            <div
+              key={index}
                 className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-400 border-2 border-black flex items-center justify-center text-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-              >
-                {emoji}
-              </div>
-            ))}
-          </div>
+            >
+              {emoji}
+            </div>
+          ))}
         </div>
+        </div>
+
+
       </div>
 
       {/* New Post Modal */}
