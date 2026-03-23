@@ -13,68 +13,25 @@ interface SongPostComponentProps {
 
 export function FeedPage() {
   const todayEmojiSet = dailyEmojiSets[0];
-  // const [posts, setPosts] = useState(initialPosts.filter(p => p.date === '2026-02-12'));
-  const [posts, setPosts] = useState<SongPost[]>([]);
+  const [posts, setPosts] = useState(initialPosts.filter(p => p.date === '2026-02-12'));
   const [showNewPost, setShowNewPost] = useState(false);
 
+  const [sbPosts, setSbPosts] = useState([])
   useEffect(() => {
-    async function fetchPosts() {
+    async function getSbPosts() {
       const { data, error } = await supabase
         .from('posts')
         .select('*')
-        .order('created_at', { ascending: false });
-
-      console.log('SUPABASE DATA:', data);
+        .order('created_at', { ascending: false })
 
       if (error) {
-        console.error('Error fetching posts:', error);
-        return;
+        console.error(error)
+      } else {
+        setSbPosts(data)
       }
-
-      const mappedPosts: SongPost[] = (data || []).map((post: any) => ({
-        id: post.id,
-        userId: post.user_id,
-        user: {
-          id: post.user_id,
-          username: post.user_id,
-          displayName: post.user_id,
-          bio: '',
-          avatarUrl: 'https://placehold.co/100x100',
-          followers: 0,
-          following: 0,
-        },
-        spotifyUrl: post.spotify_url,
-        albumArt: post.album_art,
-        songTitle: post.song_title,
-        artist: post.artist,
-        caption: post.caption,
-        date: post.post_date,
-        reactions: [],
-        comments: [],
-      }));
-
-      setPosts(mappedPosts);
     }
-
-    fetchPosts();
-  }, []);
-
-  // const [sbPosts, setSbPosts] = useState([])
-  // useEffect(() => {
-  //   async function getSbPosts() {
-  //     const { data, error } = await supabase
-  //       .from('posts')
-  //       .select('*')
-  //       .order('created_at', { ascending: false })
-
-  //     if (error) {
-  //       console.error(error)
-  //     } else {
-  //       setSbPosts(data)
-  //     }
-  //   }
-  //   getSbPosts()
-  // }, [])
+    getSbPosts()
+  }, [])
 
   const handleReaction = (postId: string, emoji: string) => {
     setPosts(posts.map(post => {
@@ -175,7 +132,7 @@ export function FeedPage() {
       )}
 
       {/* OG SUPABASE TEST DATA */}
-      {/* <div className="p-4 border-b-4 border-red-500">
+      <div className="p-4 border-b-4 border-red-500">
         <h2 className="font-bold mb-2">Supabase Test Data:</h2>
         {sbPosts.map((post) => (
           <div key={post.id} className="mb-2 p-2 border">
@@ -185,7 +142,7 @@ export function FeedPage() {
             <p>Link: {post.song.link}</p>
           </div>
         ))}
-      </div> */}
+      </div>
 
       {/* Feed */}
       <div className="divide-y-2 divide-gray-300">
