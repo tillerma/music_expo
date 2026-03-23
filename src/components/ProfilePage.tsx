@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { currentUser, generateCalendarPosts, initialFollowRequests } from '../data/mockData';
+import { currentUser } from '../auth/currentUserInfo';
+import { /*currentUser, */generateCalendarPosts, initialFollowRequests } from '../data/mockData';
 import { SongPost, FollowRequest } from '../types';
 import { ChevronLeft, ChevronRight, Bell, X, Check } from 'lucide-react';
 

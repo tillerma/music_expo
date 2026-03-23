@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { currentUser } from '../data/mockData';
+import { currentUser } from '../auth/currentUserInfo';
+// import { currentUser } from '../data/mockData';
 import { SongPost, Comment } from '../types';
 import { ChevronDown, ChevronUp, MessageCircle, ExternalLink } from 'lucide-react';
 import { supabase } from '../lib/supabase';
