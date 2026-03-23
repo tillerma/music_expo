@@ -73,51 +73,57 @@ from generate_music_map import (
 
 def fetch_posts_from_db() -> list[dict]:
     """
-    PRODUCTION: Query your database for all user posts.
+    Fetch all posts joined with song audio features from Supabase.
 
-    Replace this with your actual DB query. The returned list should look like:
-    [
-      {
-        "user_id":   "uuid-or-string",
-        "features":  { "danceability": 0.8, "energy": 0.6, ... },  # from Spotify API
-        "songTitle": "God's Plan",
-        "artist":    "Drake",
-        "caption":   "this one goes hard",
-        "postedAt":  "2024-03-15T14:23:00Z",
-      },
-      ...
-    ]
+    Reads posts → songs (via posts_song_id_fkey) to get Spotify audio features.
+    Each user can have multiple posts; the pipeline will average them.
 
-    Each user can have multiple posts. The pipeline will average them.
+    Required env vars:
+        SUPABASE_URL         — your project URL
+        SUPABASE_SERVICE_KEY — service-role key (bypasses RLS)
     """
-    # ── Supabase example ──────────────────────────────────────────────────────
-    # from supabase import create_client
-    # supabase = create_client(os.environ['SUPABASE_URL'], os.environ['SUPABASE_KEY'])
-    # rows = supabase.table('posts').select(
-    #     'user_id, song_title, artist, caption, posted_at, '
-    #     'feat_danceability, feat_energy, feat_valence, feat_acousticness, '
-    #     'feat_instrumentalness, feat_liveness, feat_speechiness, feat_tempo, feat_loudness'
-    # ).execute().data
-    # return [{
-    #     'user_id':   r['user_id'],
-    #     'songTitle': r['song_title'],
-    #     'artist':    r['artist'],
-    #     'caption':   r['caption'],
-    #     'postedAt':  r['posted_at'],
-    #     'features': {
-    #         'danceability':     r['feat_danceability'],
-    #         'energy':           r['feat_energy'],
-    #         'valence':          r['feat_valence'],
-    #         'acousticness':     r['feat_acousticness'],
-    #         'instrumentalness': r['feat_instrumentalness'],
-    #         'liveness':         r['feat_liveness'],
-    #         'speechiness':      r['feat_speechiness'],
-    #         'tempo':            r['feat_tempo'],
-    #         'loudness':         r['feat_loudness'],
-    #     },
-    # } for r in rows]
+    import os
+    from supabase import create_client
 
-    raise NotImplementedError("Replace this with your real DB query")
+    sb = create_client(
+        os.environ['SUPABASE_URL'],
+        os.environ['SUPABASE_SERVICE_KEY'],
+    )
+
+    rows = sb.table('posts').select(
+        'user_id, caption, created_at, '
+        'songs!posts_song_id_fkey('
+        '  song_title, artist, album_art, '
+        '  danceability, energy, valence, acousticness, '
+        '  instrumentalness, liveness, speechiness, tempo, loudness'
+        ')'
+    ).execute().data
+
+    posts = []
+    for r in rows:
+        song = r.get('songs') or {}
+        if not song:
+            continue  # skip posts with no linked song / missing features
+        posts.append({
+            'user_id':   r['user_id'],
+            'songTitle': song.get('song_title', ''),
+            'artist':    song.get('artist', ''),
+            'albumArt':  song.get('album_art'),
+            'caption':   r.get('caption', ''),
+            'postedAt':  r.get('created_at', ''),
+            'features': {
+                'danceability':     song.get('danceability',     0),
+                'energy':           song.get('energy',           0),
+                'valence':          song.get('valence',          0),
+                'acousticness':     song.get('acousticness',     0),
+                'instrumentalness': song.get('instrumentalness', 0),
+                'liveness':         song.get('liveness',         0),
+                'speechiness':      song.get('speechiness',      0),
+                'tempo':            song.get('tempo',            0),
+                'loudness':         song.get('loudness',         0),
+            },
+        })
+    return posts
 
 
 def fetch_posts_from_json(json_path: str) -> list[dict]:
@@ -142,28 +148,52 @@ def fetch_posts_from_json(json_path: str) -> list[dict]:
 
 def write_positions_to_db(positions: list[dict]) -> None:
     """
-    PRODUCTION: Write computed x,y coordinates to your database.
+    Write PCA+UMAP coordinates to the `map_positions` Supabase table.
 
-    Your API endpoint reads from this table to serve the frontend.
+    The TypeScript `useMusicMapSupabase` hook reads this table first; if rows
+    exist it uses them (UMAP quality) instead of computing PCA in the browser.
 
-    Schema suggestion (Supabase / Postgres):
-        CREATE TABLE map_positions (
-            user_id     TEXT PRIMARY KEY,
+    Required Supabase table (run once in the SQL editor):
+        CREATE TABLE IF NOT EXISTS map_positions (
+            user_id     TEXT PRIMARY KEY REFERENCES profiles(id),
             x           FLOAT,
             y           FLOAT,
             song_title  TEXT,
             artist      TEXT,
+            album_art   TEXT,
             caption     TEXT,
             features    JSONB,
             computed_at TIMESTAMPTZ DEFAULT NOW()
         );
-    """
-    # ── Supabase example ──────────────────────────────────────────────────────
-    # from supabase import create_client
-    # supabase = create_client(os.environ['SUPABASE_URL'], os.environ['SUPABASE_KEY'])
-    # supabase.table('map_positions').upsert(positions, on_conflict='user_id').execute()
 
-    raise NotImplementedError("Replace this with your real DB write")
+    Required env vars:
+        SUPABASE_URL         — your project URL
+        SUPABASE_SERVICE_KEY — service-role key (bypasses RLS)
+    """
+    import os
+    from supabase import create_client
+
+    sb = create_client(
+        os.environ['SUPABASE_URL'],
+        os.environ['SUPABASE_SERVICE_KEY'],
+    )
+
+    rows = [
+        {
+            'user_id':    p['userId'],
+            'x':          p['x'],
+            'y':          p['y'],
+            'song_title': p['songToday']['songTitle'],
+            'artist':     p['songToday']['artist'],
+            'album_art':  p['songToday'].get('albumArt'),
+            'caption':    p['songToday']['caption'],
+            'features':   p['songToday']['features'],
+            'computed_at': p['computedAt'],
+        }
+        for p in positions
+    ]
+
+    sb.table('map_positions').upsert(rows, on_conflict='user_id').execute()
 
 
 def write_positions_to_json(positions: list[dict], out_path: str) -> None:
@@ -252,6 +282,7 @@ def recompute(posts: list[dict]) -> list[dict]:
                 'user_id':   user_id,
                 'songTitle': post.get('songTitle') or song[0],
                 'artist':    post.get('artist')    or song[1],
+                'albumArt':  post.get('albumArt'),
                 'caption':   post.get('caption', ''),
                 'postedAt':  post.get('postedAt', datetime.utcnow().isoformat()),
                 'features':  {c: round(float(raw_features[j]), 6)
