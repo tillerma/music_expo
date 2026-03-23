@@ -287,8 +287,6 @@ export function MusicMapPage() {
       if (e.deltaMode === 2) dy *= rect.height;
 
       // Exponential zoom: factor = e^(-dy/sensitivity)
-      // This is continuous and properly handles both trackpads (many small
-      // deltas) and mouse wheels (few large deltas) without over-zooming.
       const factor  = Math.exp(-dy / WHEEL_SENSITIVITY);
       const t       = transformRef.current;
       const ns      = clampZoom(t.scale * factor);
@@ -349,11 +347,6 @@ export function MusicMapPage() {
   const zoomIn  = () => zoomAround(cx, cy, 1 + ZOOM_STEP * 3);
   const zoomOut = () => zoomAround(cx, cy, 1 - ZOOM_STEP * 3);
 
-  /**
-   * Compute a transform that fits ALL map nodes into the visible container
-   * with a given padding fraction (0.1 = 10% padding on each side).
-   * Used for the initial view and when no current user is found.
-   */
   const fitAllTransform = useCallback((padding = 0.12): Transform => {
     if (userMapPositions.length === 0) return { x: 0, y: 0, scale: 1 };
     const xs = userMapPositions.map(p => p.x);
@@ -365,32 +358,23 @@ export function MusicMapPage() {
     const { w, h } = containerSize;
     const scaleX = (w * (1 - 2 * padding)) / dataW;
     const scaleY = (h * (1 - 2 * padding)) / dataH;
-    const scale  = clampZoom(Math.min(scaleX, scaleY, 1.0)); // never start zoomed in
-    // Centre of the data bounding box
+    const scale  = clampZoom(Math.min(scaleX, scaleY, 1.0));
     const cx_ = (minX + maxX) / 2;
     const cy_ = (minY + maxY) / 2;
-    // From dataToScreen: sx = w/2 + dx*scale + tx
-    // To put cx_ at screen centre: w/2 + cx_*scale + tx = w/2  →  tx = -cx_*scale
-    // Similarly: sy = h/2 - dy*scale + ty → ty = +cy_*scale
     return {
       scale,
       x: -(cx_ * scale),
       y:  (cy_ * scale),
     };
-  }, [containerSize]);
+  }, [containerSize, userMapPositions]);
 
   const resetView = useCallback(() => {
     syncTransform(fitAllTransform());
   }, [syncTransform, fitAllTransform]);
 
-  // ── Initial view: fit all nodes, centred on current user ──────────────────
-  // Fires once when the container is first measured (not on the default 800×600).
-  // Uses fitAllTransform so ALL nodes are visible on load — the current user
-  // is highlighted with a ring so they can find themselves in the overview.
   const hasFitted = useRef(false);
   useEffect(() => {
     if (hasFitted.current) return;
-    // containerSize starts at 800×600 as a placeholder — skip until real
     if (containerSize.w === 800 && containerSize.h === 600) return;
     hasFitted.current = true;
     syncTransform(fitAllTransform());
@@ -419,7 +403,7 @@ export function MusicMapPage() {
     });
   };
 
-  const onMouseUp   = () => { isDown.current = false; setIsCursorGrab(false); };
+  const onMouseUp    = () => { isDown.current = false; setIsCursorGrab(false); };
   const onMouseLeave = () => { isDown.current = false; setIsCursorGrab(false); };
 
   // ── Touch handlers (start/end only — move is native above) ────────────────
@@ -439,7 +423,6 @@ export function MusicMapPage() {
 
   // ── Avatar click / hover ───────────────────────────────────────────────────
   const handleAvatarPointerDown = (e: React.PointerEvent) => {
-    // Stop propagation so the map's onMouseDown doesn't fire for avatar clicks
     e.stopPropagation();
   };
 
@@ -450,10 +433,7 @@ export function MusicMapPage() {
     setHoveredUser(null);
   };
 
-  const handleAvatarMouseEnter = (
-    e: React.MouseEvent,
-    userPos: UserMapPosition
-  ) => {
+  const handleAvatarMouseEnter = (e: React.MouseEvent, userPos: UserMapPosition) => {
     setHoveredUser(userPos);
     const rect = containerRef.current!.getBoundingClientRect();
     setTooltipPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
@@ -481,11 +461,11 @@ export function MusicMapPage() {
   // ── Compute positions ──────────────────────────────────────────────────────
   const xCoords = useMemo(
     () => mode === 'axes' ? featureToCoord(userMapPositions, xAxis) : null,
-    [mode, xAxis]
+    [mode, xAxis, userMapPositions]
   );
   const yCoords = useMemo(
     () => mode === 'axes' ? featureToCoord(userMapPositions, yAxis) : null,
-    [mode, yAxis]
+    [mode, yAxis, userMapPositions]
   );
 
   const getScreenPos = useCallback((p: UserMapPosition) => {
@@ -534,10 +514,7 @@ export function MusicMapPage() {
   return (
     <div
       className="flex flex-col bg-white"
-      style={{
-        // Nav bar in Root.tsx is fixed h-16 = 64px. Subtract so map never goes under it.
-        height: 'calc(100dvh - 64px)',
-      }}
+      style={{ height: 'calc(100dvh - 64px)' }}
     >
 
       {/* ── HEADER ── */}
@@ -585,18 +562,8 @@ export function MusicMapPage() {
           {/* Axis selectors (only in axes mode) */}
           {mode === 'axes' && (
             <>
-              <AxisDropdown
-                label="X →"
-                value={xAxis}
-                onChange={setXAxis}
-                exclude={yAxis}
-              />
-              <AxisDropdown
-                label="Y ↑"
-                value={yAxis}
-                onChange={setYAxis}
-                exclude={xAxis}
-              />
+              <AxisDropdown label="X →" value={xAxis} onChange={setXAxis} exclude={yAxis} />
+              <AxisDropdown label="Y ↑" value={yAxis} onChange={setYAxis} exclude={xAxis} />
             </>
           )}
 
@@ -608,8 +575,7 @@ export function MusicMapPage() {
         </div>
       </div>
 
-      {/* ── MAP ── overflow-hidden clips avatars so they never bleed above the filter bar
-               or below a native bottom nav. z-index on children is scoped to this context. */}
+      {/* ── MAP ── */}
       <div className="flex-1 relative overflow-hidden min-h-0" style={{ zIndex: 1 }}>
         <div
           ref={containerRef}
@@ -647,21 +613,16 @@ export function MusicMapPage() {
             const origin = dataToScreen(0, 0, transform, containerSize.w, containerSize.h);
             return (
               <>
-                {/* X axis */}
                 <div className="absolute pointer-events-none" style={{
-                  left: 0, right: 0, top: origin.sy,
-                  height: 1,
+                  left: 0, right: 0, top: origin.sy, height: 1,
                   background: 'repeating-linear-gradient(90deg,#a78bfa 0,#a78bfa 5px,transparent 5px,transparent 12px)',
                   opacity: 0.5,
                 }} />
-                {/* Y axis */}
                 <div className="absolute pointer-events-none" style={{
-                  top: 0, bottom: 0, left: origin.sx,
-                  width: 1,
+                  top: 0, bottom: 0, left: origin.sx, width: 1,
                   background: 'repeating-linear-gradient(180deg,#a78bfa 0,#a78bfa 5px,transparent 5px,transparent 12px)',
                   opacity: 0.5,
                 }} />
-                {/* Axis labels */}
                 <div className="absolute pointer-events-none text-[10px] font-bold text-purple-400 px-1"
                   style={{ left: containerSize.w - 6, top: origin.sy + 4, transform: 'translateX(-100%)' }}>
                   {xLabel} →
@@ -679,16 +640,8 @@ export function MusicMapPage() {
             const { sx, sy } = getScreenPos(userPos);
             const isSelected    = selectedUser?.user.id === userPos.user.id;
             const isCurrentUser = userPos.user.id === currentUser.id;
-
-            // Avatar size scales inversely with zoom so they stay a constant
-            // physical size in data-space — zooming in reveals more detail,
-            // zooming out keeps the overview readable.
-            // Clamped so they never get tiny (<18px) or huge (>52px).
-            // Fixed screen-space size — avatars stay the same px size regardless
-            // of zoom, exactly like pins on Google Maps. Zooming moves nodes
-            // apart (more data-space visible), not shrinks them.
-            const baseSize    = isCurrentUser ? Math.round(AVATAR_SIZE * 1.2) : AVATAR_SIZE;
-            const size        = isSelected ? Math.round(baseSize * 1.4) : baseSize;
+            const baseSize      = isCurrentUser ? Math.round(AVATAR_SIZE * 1.2) : AVATAR_SIZE;
+            const size          = isSelected ? Math.round(baseSize * 1.4) : baseSize;
 
             return (
               <button
@@ -733,7 +686,6 @@ export function MusicMapPage() {
                     ].join(' ')}
                   />
                 )}
-
               </button>
             );
           })}

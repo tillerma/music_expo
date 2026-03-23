@@ -40,6 +40,15 @@ export const getAudioFeatures = (trackId: string) =>
     loudness: number;
   }>(`/audio-features/${trackId}`);
 
+export const getTrack = (trackId: string) =>
+  spotifyFetch<{
+    id: string;
+    name: string;
+    artists: Array<{ name: string }>;
+    album: { images: Array<{ url: string }> };
+    external_urls: { spotify: string };
+  }>(`/tracks/${trackId}`);
+
 export const getAudioFeaturesForTracks = (trackIds: string[]) =>
   spotifyFetch<{
     audio_features: Array<{
