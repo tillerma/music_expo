@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
 import { Home, Compass, Music, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { exchangeCodeForToken, getToken } from '../utils/spotifyAuth';
+import { handleCallback, isLoggedIn } from '../utils/spotifyAuth';
 import { getCurrentUser } from '../api/spotify';
 import { allUsers } from '../data/allUsers';
 import { setAppCurrentUserId } from '../data/authUser';
@@ -29,33 +29,15 @@ export function Root() {
 
   // Handle Spotify redirect with ?code=...: exchange for token, then check local user DB
  useEffect(() => {
-  const params = new URLSearchParams(window.location.search);
-  const code = params.get('code');
-
   (async () => {
     try {
-      if (code) {
-        // Exchange code for token
-        await exchangeCodeForToken(code);
+      // handleCallback() returns true only if ?code= was in the URL,
+      // and internally handles the exchange + URL cleanup + state validation.
+      const wasCallback = await handleCallback();
 
-        const token = getToken();
-        if (!token) {
-          throw new Error("Token was not stored correctly after exchange");
-        }
-
-        // Remove ?code from URL
-        params.delete('code');
-        const newUrl =
-          window.location.pathname +
-          (params.toString() ? `?${params.toString()}` : '');
-        window.history.replaceState({}, '', newUrl);
-      }
-
-      // Only proceed if token exists
-      if (getToken()) {
+      if (wasCallback || isLoggedIn()) {
         const spotifyProfile = await getCurrentUser();
         const spotifyId = spotifyProfile.id;
-
         const found = allUsers.find(
           u => u.id === spotifyId || u.username === spotifyId
         );
@@ -73,15 +55,7 @@ export function Root() {
       }
     } catch (err) {
       console.error('Error handling Spotify redirect', err);
-
-      // Clean URL even on failure
-      params.delete('code');
-      const newUrl =
-        window.location.pathname +
-        (params.toString() ? `?${params.toString()}` : '');
-      window.history.replaceState({}, '', newUrl);
     } finally {
-      
       setAuthReady(true);
     }
   })();
