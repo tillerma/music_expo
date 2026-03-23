@@ -24,25 +24,28 @@ export function FeedPage() {
   const [selectedTrack, setSelectedTrack] = useState<any | null>(null);
   const [newPostCaption, setNewPostCaption] = useState('');
 
-  // Remove auto-search. Use explicit search button instead.
-  const handleTrackSearch = async () => {
+  useEffect(() => {
     if (!searchQuery || searchQuery.trim().length < 3) {
       setSearchResults([]);
-      setSearchError('Please enter at least 3 characters.');
+      setSearchError(null);
       return;
     }
+
     setIsSearching(true);
     setSearchError(null);
-    try {
-      const res = await searchTracks(searchQuery);
-      // Limit to 20 top tracks
-      setSearchResults((res.tracks.items || []).slice(0, 20));
-    } catch (err: any) {
-      setSearchError(err?.message || 'Search failed');
-    } finally {
-      setIsSearching(false);
-    }
-  };
+    const handler = setTimeout(async () => {
+      try {
+        const res = await searchTracks(searchQuery);
+        setSearchResults(res.tracks.items || []);
+      } catch (err: any) {
+        setSearchError(err?.message || 'Search failed');
+      } finally {
+        setIsSearching(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
   const handleReaction = (postId: string, emoji: string) => {
     setPosts(posts.map(post => {
@@ -121,26 +124,17 @@ export function FeedPage() {
             <h2 className="text-xl font-bold mb-4">SHARE TODAY'S SONG</h2>
             {/* Spotify search: type to search tracks and pick one to auto-fill the URL */}
             <div className="mb-3">
-              <div className="flex gap-2">
-                <input
-                  type="search"
-                  placeholder="Search Spotify for a song"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-yellow-100 border-2 border-black px-4 py-2 focus:outline-none focus:border-purple-500"
-                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleTrackSearch(); } }}
-                />
-                <button
-                  type="button"
-                  onClick={handleTrackSearch}
-                  className="bg-gradient-to-r from-green-400 to-blue-400 text-white border-2 border-black px-4 py-2 font-bold hover:bg-green-500"
-                  disabled={isSearching}
-                >
-                  Search
-                </button>
-              </div>
+              <input
+                type="search"
+                placeholder="Search Spotify for a song"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-yellow-100 border-2 border-black px-4 py-2 focus:outline-none focus:border-purple-500"
+              />
+
               {isSearching && <p className="mt-2 text-sm text-gray-600">Searching…</p>}
               {searchError && <p className="mt-2 text-sm text-red-600">{searchError}</p>}
+
               {searchResults.length > 0 && (
                 <ul className="mt-2 max-h-48 overflow-auto bg-white border-2 border-black">
                   {searchResults.map((t) => (

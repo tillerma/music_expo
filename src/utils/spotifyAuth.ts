@@ -184,7 +184,7 @@ export async function handleCallback(): Promise<boolean> {
   cleanUrl.searchParams.delete('code');
   cleanUrl.searchParams.delete('state');
   window.history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search);
-  
+
   return true;
 }
 
@@ -334,6 +334,7 @@ export function isLoggedIn(): boolean {
 
   return true;
 }
+
 
 /** Clear all Spotify tokens and session data from storage. */
 export function logout(): void {

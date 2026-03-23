@@ -48,7 +48,7 @@ export function Root() {
             JSON.stringify(spotifyProfile)
           );
           navigate('/create-account');
-          
+
         } else {
           setAppCurrentUserId(found.id);
           navigate('/');
