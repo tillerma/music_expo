@@ -12,8 +12,8 @@ const SCOPES = [
 
 // Quick runtime validation for environment config.
 function ensureClientConfig() {
-  const missing = !CLIENT_ID || CLIENT_ID === 'YOUR_CLIENT_ID' || CLIENT_ID.toLowerCase().includes('your client');
-  const missingRedirect = !REDIRECT_URI || REDIRECT_URI === 'YOUR_REDIRECT_URI';
+  const missing = !CLIENT_ID || CLIENT_ID === '669e4625669541ed99d9a6fb12c76d81' || CLIENT_ID.toLowerCase().includes('669e4625669541ed99d9a6fb12c76d81');
+  const missingRedirect = !REDIRECT_URI || REDIRECT_URI === 'https://projectlyra.vercel.app/';
   if (missing || missingRedirect) {
     // Provide a clearer, actionable error message for developers.
     const parts: string[] = [];
