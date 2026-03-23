@@ -26,6 +26,8 @@
   Run `npm install -D @types/react @types/react-dom` for React types (recommended for TypeScript projects).
   Run `npm run dev` to start the development server.
   
-  npm install -D @types/react @types/react-dom
+  Run `npm install @spotify/web-api-ts-sdk` to install Spotify packages for the API.
 
-  npm install @spotify/web-api-ts-sdk  
+  Run `npm install -D @types/react @types/react-dom` for React types (recommended for TypeScript projects).
+
+  Run `npm install @supabase/supabase-js` for supabase dependencies

@@ -84,25 +84,40 @@ export interface AlgorithmicRec {
   language: string;
 }
 
-// Spotify Types
+// Minimal Spotify API response types used by src/api/spotify.ts
 export interface SpotifyUser {
   id: string;
-  display_name: string;
-  email: string;
-  images: { url: string }[];
+  display_name?: string;
+  email?: string;
+  images?: { url: string }[];
+  external_urls?: { spotify?: string };
 }
 
-export interface SpotifyPlaylist {
+export interface SpotifyArtist {
   id: string;
   name: string;
-  images: { url: string }[];
-  tracks: { total: number };
+}
+
+export interface SpotifyAlbum {
+  id: string;
+  name: string;
+  images?: { url: string }[];
 }
 
 export interface SpotifyTrack {
   id: string;
   name: string;
-  artists: { name: string }[];
-  album: { name: string; images: { url: string }[] };
-  duration_ms: number;
+  artists?: SpotifyArtist[];
+  album?: SpotifyAlbum;
+  external_urls?: { spotify?: string };
+  uri?: string;
+}
+
+export interface SpotifyPlaylist {
+  id: string;
+  name: string;
+  description?: string;
+  images?: { url: string }[];
+  external_urls?: { spotify?: string };
+  tracks?: { items?: Array<{ track?: SpotifyTrack }> };
 }

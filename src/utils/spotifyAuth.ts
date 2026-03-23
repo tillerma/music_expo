@@ -15,12 +15,10 @@ function ensureClientConfig() {
   const missing = !CLIENT_ID || CLIENT_ID === 'YOUR_CLIENT_ID' || CLIENT_ID.toLowerCase().includes('your client');
   const missingRedirect = !REDIRECT_URI || REDIRECT_URI === 'YOUR_REDIRECT_URI';
   if (missing || missingRedirect) {
-    // Provide a clearer, actionable error message for developers.
     const parts: string[] = [];
     if (missing) parts.push('VITE_SPOTIFY_CLIENT_ID is not set or is a placeholder');
     if (missingRedirect) parts.push('VITE_REDIRECT_URI is not set or is a placeholder');
     const msg = `Spotify auth misconfigured: ${parts.join('; ')}. See README and set these in your .env or host environment.`;
-    // Log to console and throw so the caller can handle it (and tests will fail loudly).
     console.error(msg);
     throw new Error(msg);
   }
@@ -74,7 +72,14 @@ export async function loginWithSpotify(showDialog = false): Promise<void> {
     show_dialog: String(showDialog), // from Approach 2 — forces re-login prompt if true
   });
 
-  window.location.href = `https://accounts.spotify.com/authorize?${params}`;
+  const authUrl = `https://accounts.spotify.com/authorize?${params}`;
+  try {
+    // eslint-disable-next-line no-console
+    console.log('[spotifyAuth] redirecting to Spotify authorize URL:', authUrl, 'CLIENT_ID=', CLIENT_ID);
+  } catch (err) {
+    // ignore
+  }
+  window.location.assign(authUrl);
 }
 
 export async function exchangeCodeForToken(code: string): Promise<void> {

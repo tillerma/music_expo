@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router';
 import { songPosts as initialPosts, dailyEmojiSets, currentUser } from '../data/mockData';
 import { searchTracks } from '../api/spotify';
 import { SongPost, Comment } from '../types';
@@ -81,10 +82,18 @@ export function FeedPage() {
     <div className="min-h-screen bg-white">
       {/* Header */}
       <div className="sticky top-0 bg-white border-b-4 border-black z-10">
-        <div className="px-4 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-xl font-bold">Today's Songs</h1>
-            <p className="text-sm text-gray-600">February 12, 2026</p>
+        <div className="px-4 py-4 flex justify-between items-center relative">
+          <div className="flex items-center gap-3">
+            <Link
+              to="/login"
+              className="inline-block mr-2 bg-white border-2 border-black px-3 py-1 font-bold text-sm hover:bg-gray-100"
+            >
+              Log in
+            </Link>
+            <div>
+              <h1 className="text-xl font-bold">Today's Songs</h1>
+              <p className="text-sm text-gray-600">February 12, 2026</p>
+            </div>
           </div>
           <button
             onClick={() => setShowNewPost(true)}
