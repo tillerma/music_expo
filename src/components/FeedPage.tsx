@@ -36,6 +36,22 @@ export function FeedPage() {
           avatar_url,
           followers,
           following
+        ),
+        reactions (
+          id,
+          emoji,
+          user_id,
+          user_name
+        ),
+        comments (
+          id,
+          user_id,
+          caption,
+          song_title,
+          artist,
+          album_art,
+          spotify_url,
+          timestamp
         )
       `)
       .order('created_at', { ascending: false });
@@ -65,8 +81,34 @@ export function FeedPage() {
         artist: post.artist,
         caption: post.caption,
         date: post.post_date,
-        reactions: [],
-        comments: [],
+        reactions: (post.reactions || []).map((reaction: any) => ({
+          emoji: reaction.emoji,
+          userId: reaction.user_id,
+          userName: reaction.user_name,
+        })),
+        comments: (post.comments || []).map((comment: any) => ({
+          id: comment.id,
+          userId: comment.user_id,
+          user: {
+            id: comment.user_id,
+            username: comment.user_id,
+            displayName: comment.user_id,
+            bio: '',
+            avatarUrl: 'https://placehold.co/100x100',
+            followers: 0,
+            following: 0,
+          },
+          caption: comment.caption,
+          timestamp: comment.timestamp,
+          song: comment.song_title
+            ? {
+                songTitle: comment.song_title,
+                artist: comment.artist ?? '',
+                albumArt: comment.album_art ?? 'https://placehold.co/100x100',
+                spotifyUrl: comment.spotify_url ?? '',
+              }
+            : undefined,
+        })),
       }));
 
       setPosts(mappedPosts);
@@ -133,24 +175,39 @@ export function FeedPage() {
     }
   }
 
-  const handleReaction = (postId: string, emoji: string) => {
-    setPosts(posts.map(post => {
-      if (post.id === postId) {
-        const existingReaction = post.reactions.find(r => r.userId === 'user-1');
-        if (existingReaction) {
-          return {
-            ...post,
-            reactions: post.reactions.filter(r => r.userId !== 'user-1'),
-          };
-        } else {
-          return {
-            ...post,
-            reactions: [...post.reactions, { emoji, userId: 'user-1', userName: 'musiclover' }],
-          };
-        }
+  const handleReaction = async (postId: string, emoji: string) => {
+    const existingPost = posts.find((p) => p.id === postId);
+    const existingReaction = existingPost?.reactions.find(
+      (r) => r.userId === currentUser.id
+    );
+
+    if (existingReaction) {
+      const { error } = await supabase
+        .from('reactions')
+        .delete()
+        .eq('post_id', postId)
+        .eq('user_id', currentUser.id);
+
+      if (error) {
+        console.error('Error deleting reaction:', error);
+        return;
       }
-      return post;
-    }));
+    } else {
+      const { error } = await supabase.from('reactions').insert({
+        id: crypto.randomUUID(),
+        post_id: postId,
+        emoji,
+        user_id: currentUser.id,
+        user_name: currentUser.username,
+      });
+
+      if (error) {
+        console.error('Error adding reaction:', error);
+        return;
+      }
+    }
+
+    await fetchPosts();
   };
 
   const handleAddComment = (postId: string, comment: Comment) => {
