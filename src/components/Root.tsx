@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
 import { Home, Compass, Music, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { handleCallback, isLoggedIn } from '../utils/spotifyAuth';
+import { handleCallback, isLoggedIn, storeSpotifyUserId, getSpotifyUserId } from '../utils/spotifyAuth';
 import { getCurrentUser } from '../api/spotify';
 import { allUsers } from '../data/allUsers';
 import { setAppCurrentUserId } from '../data/authUser';
@@ -9,7 +9,11 @@ import { setAppCurrentUserId } from '../data/authUser';
 export function Root() {
   const location = useLocation();
 
-  const [authReady, setAuthReady] = useState(false);
+  // Only block rendering while processing an actual OAuth callback (?code= in URL).
+  // Normal page loads and returning users render immediately without a loading flash.
+  const [authReady, setAuthReady] = useState(
+    () => !new URLSearchParams(window.location.search).has('code')
+  );
 
   const navItems = [
     { path: '/', icon: Home, label: 'Feed' },
@@ -27,40 +31,52 @@ export function Root() {
 
   const navigate = useNavigate();
 
-  // Handle Spotify redirect with ?code=...: exchange for token, then check local user DB
- useEffect(() => {
-  (async () => {
-    try {
-      // handleCallback() returns true only if ?code= was in the URL,
-      // and internally handles the exchange + URL cleanup + state validation.
-      const wasCallback = await handleCallback();
+  useEffect(() => {
+    (async () => {
+      try {
+        const wasCallback = await handleCallback();
 
-      if (wasCallback || isLoggedIn()) {
-        const spotifyProfile = await getCurrentUser();
-        const spotifyId = spotifyProfile.id;
-        const found = allUsers.find(
-          u => u.id === spotifyId || u.username === spotifyId
-        );
+        if (wasCallback) {
+          // Fresh OAuth callback: exchange succeeded, fetch the Spotify profile
+          // and route to the correct page.
+          const spotifyProfile = await getCurrentUser();
+          const spotifyId = spotifyProfile.id;
 
-        if (!found) {
-          sessionStorage.setItem(
-            'pending_spotify_profile',
-            JSON.stringify(spotifyProfile)
+          // Store Spotify user ID immediately for all pages to use.
+          storeSpotifyUserId(spotifyId);
+
+          const found = allUsers.find(
+            u => u.id === spotifyId || u.username === spotifyId
           );
-          navigate('/create-account');
 
-        } else {
-          setAppCurrentUserId(found.id);
-          navigate('/');
+          if (!found) {
+            sessionStorage.setItem('pending_spotify_profile', JSON.stringify(spotifyProfile));
+            navigate('/create-account');
+          } else {
+            setAppCurrentUserId(found.id);
+            navigate('/');
+          }
+        } else if (isLoggedIn() && !getSpotifyUserId()) {
+          // Returning user whose Spotify ID isn't cached yet — fetch and store it
+          // without navigating away from the current page.
+          try {
+            const spotifyProfile = await getCurrentUser();
+            storeSpotifyUserId(spotifyProfile.id);
+            const found = allUsers.find(
+              u => u.id === spotifyProfile.id || u.username === spotifyProfile.id
+            );
+            if (found) setAppCurrentUserId(found.id);
+          } catch {
+            // Token may be stale; silently ignore so the user can continue browsing.
+          }
         }
+      } catch (err) {
+        console.error('Auth error in Root', err);
+      } finally {
+        setAuthReady(true);
       }
-    } catch (err) {
-      console.error('Error handling Spotify redirect', err);
-    } finally {
-      setAuthReady(true);
-    }
-  })();
-}, [navigate]);
+    })();
+  }, [navigate]);
 
 if (!authReady) {
   return <div>Loading...</div>;

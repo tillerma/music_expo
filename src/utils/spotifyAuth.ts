@@ -21,6 +21,7 @@ const STORAGE_KEYS = {
   accessToken: 'spotify_access_token',
   refreshToken: 'spotify_refresh_token',
   expiresAt: 'spotify_token_expires_at',
+  spotifyUserId: 'spotify_user_id',
 } as const;
 
 // ─── Config Validation ────────────────────────────────────────────────────────
@@ -339,6 +340,17 @@ export function isLoggedIn(): boolean {
 /** Clear all Spotify tokens and session data from storage. */
 export function logout(): void {
   Object.values(STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
+  localStorage.removeItem('app_current_user_id');
+}
+
+/** Store the authenticated Spotify user's ID for use across pages. */
+export function storeSpotifyUserId(id: string): void {
+  localStorage.setItem(STORAGE_KEYS.spotifyUserId, id);
+}
+
+/** Retrieve the stored Spotify user ID, or null if not logged in. */
+export function getSpotifyUserId(): string | null {
+  return localStorage.getItem(STORAGE_KEYS.spotifyUserId);
 }
 
 // ─── Authenticated Fetch Wrapper ──────────────────────────────────────────────
