@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { songPosts as initialPosts, dailyEmojiSets, currentUser } from '../data/mockData';
 import { SongPost, Comment } from '../types';
 import { ChevronDown, ChevronUp, MessageCircle, ExternalLink } from 'lucide-react';
+import { supabase } from '../lib/supabase'
 
 interface SongPostComponentProps {
   post: SongPost;
@@ -14,6 +15,23 @@ export function FeedPage() {
   const todayEmojiSet = dailyEmojiSets[0];
   const [posts, setPosts] = useState(initialPosts.filter(p => p.date === '2026-02-12'));
   const [showNewPost, setShowNewPost] = useState(false);
+
+  const [sbPosts, setSbPosts] = useState([])
+  useEffect(() => {
+    async function getSbPosts() {
+      const { data, error } = await supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error(error)
+      } else {
+        setSbPosts(data)
+      }
+    }
+    getSbPosts()
+  }, [])
 
   const handleReaction = (postId: string, emoji: string) => {
     setPosts(posts.map(post => {
@@ -112,6 +130,18 @@ export function FeedPage() {
           </div>
         </div>
       )}
+
+      <div className="p-4 border-b-4 border-red-500">
+        <h2 className="font-bold mb-2">Supabase Test Data:</h2>
+        {sbPosts.map((post) => (
+          <div key={post.id} className="mb-2 p-2 border">
+            <p>👤 {post.username}</p>
+            <p>🎵 {post.song.name} by {post.song.artist}</p>
+            <p>{post.user_msg}</p>
+            <p>Link: {post.song.link}</p>
+          </div>
+        ))}
+      </div>
 
       {/* Feed */}
       <div className="divide-y-2 divide-gray-300">
