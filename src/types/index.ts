@@ -121,3 +121,19 @@ export interface SpotifyPlaylist {
   external_urls?: { spotify?: string };
   tracks?: { items?: Array<{ track?: SpotifyTrack }> };
 }
+
+export type SpotifyImage = {
+  url: string;
+  height: number | null;
+  width: number | null;
+};
+
+export type SpotifySearchTracksResponse = {
+  tracks: {
+    items: SpotifyTrack[];
+    total: number;
+    limit: number;
+    offset: number;
+  };
+};
+

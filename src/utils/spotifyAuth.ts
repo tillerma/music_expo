@@ -102,7 +102,18 @@ export async function exchangeCodeForToken(code: string): Promise<void> {
   if (!response.ok) throw new Error(`Token exchange failed: ${response.status}`);
 
   const data = await response.json();
+  // Store access token and metadata in sessionStorage (session-scoped)
   sessionStorage.setItem('spotify_token', data.access_token);
+  // expires_in is seconds
+  if (data.expires_in) {
+    const expiresAt = Date.now() + Number(data.expires_in) * 1000;
+    sessionStorage.setItem('spotify_token_expires_at', String(expiresAt));
+  }
+  // If Spotify returned a refresh token (only on initial authorization), persist it for the session.
+  // Note: storing refresh tokens in the browser is not recommended for production — prefer server-side storage.
+  if (data.refresh_token) {
+    sessionStorage.setItem('spotify_refresh_token', data.refresh_token);
+  }
 
   // Clean up verifier — it's single-use
   sessionStorage.removeItem('spotify_verifier');
@@ -110,7 +121,24 @@ export async function exchangeCodeForToken(code: string): Promise<void> {
 
 // ─── Token Helpers ─────────────────────────────────────────
 export function getToken(): string | null {
-  return sessionStorage.getItem('spotify_token');
+  try {
+    const token = sessionStorage.getItem('spotify_token');
+    const expiresAtRaw = sessionStorage.getItem('spotify_token_expires_at');
+    if (!token) return null;
+    if (expiresAtRaw) {
+      const expiresAt = Number(expiresAtRaw);
+      if (Number.isFinite(expiresAt) && Date.now() > expiresAt) {
+        // Token expired — clear token and related metadata
+        sessionStorage.removeItem('spotify_token');
+        sessionStorage.removeItem('spotify_token_expires_at');
+        // keep refresh token if present (could be used to refresh via server)
+        return null;
+      }
+    }
+    return token;
+  } catch (err) {
+    return null;
+  }
 }
 
 export function isLoggedIn(): boolean {

@@ -1,13 +1,15 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router';
 import { Home, Compass, Music, User } from 'lucide-react';
-import { useEffect } from 'react';
-import { exchangeCodeForToken } from '../utils/spotifyAuth';
+import { useEffect, useState } from 'react';
+import { exchangeCodeForToken, getToken } from '../utils/spotifyAuth';
 import { getCurrentUser } from '../api/spotify';
 import { allUsers } from '../data/allUsers';
 import { setAppCurrentUserId } from '../data/authUser';
 
 export function Root() {
   const location = useLocation();
+
+  const [authReady, setAuthReady] = useState(false);
 
   const navItems = [
     { path: '/', icon: Home, label: 'Feed' },
@@ -26,45 +28,68 @@ export function Root() {
   const navigate = useNavigate();
 
   // Handle Spotify redirect with ?code=...: exchange for token, then check local user DB
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-    if (!code) return;
+ useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('code');
 
-    (async () => {
-      try {
-        // Exchange code for token (stores spotify_token in sessionStorage)
+  (async () => {
+    try {
+      if (code) {
+        // Exchange code for token
         await exchangeCodeForToken(code);
 
-        // Remove code from URL
+        const token = getToken();
+        if (!token) {
+          throw new Error("Token was not stored correctly after exchange");
+        }
+
+        // Remove ?code from URL
         params.delete('code');
-        const newUrl = window.location.pathname + (params.toString() ? `?${params.toString()}` : '');
+        const newUrl =
+          window.location.pathname +
+          (params.toString() ? `?${params.toString()}` : '');
         window.history.replaceState({}, '', newUrl);
+      }
 
-        // Fetch Spotify profile
+      // Only proceed if token exists
+      if (getToken()) {
         const spotifyProfile = await getCurrentUser();
-        const spotifyId = (spotifyProfile as any).id;
+        const spotifyId = spotifyProfile.id;
 
-        // Check local DB for a user with this id or username
-        const found = allUsers.find(u => u.id === spotifyId || u.username === spotifyId);
+        const found = allUsers.find(
+          u => u.id === spotifyId || u.username === spotifyId
+        );
+
         if (!found) {
-          // Store spotify profile temporarily and redirect to create-account
-          sessionStorage.setItem('pending_spotify_profile', JSON.stringify(spotifyProfile));
+          sessionStorage.setItem(
+            'pending_spotify_profile',
+            JSON.stringify(spotifyProfile)
+          );
           navigate('/create-account');
         } else {
-          // Existing user — mark as current and navigate to feed
           setAppCurrentUserId(found.id);
           navigate('/');
         }
-      } catch (err) {
-        console.error('Error handling Spotify redirect', err);
-        // Still remove code param so user isn't stuck
-        params.delete('code');
-        const newUrl = window.location.pathname + (params.toString() ? `?${params.toString()}` : '');
-        window.history.replaceState({}, '', newUrl);
       }
-    })();
-  }, [navigate]);
+    } catch (err) {
+      console.error('Error handling Spotify redirect', err);
+
+      // Clean URL even on failure
+      params.delete('code');
+      const newUrl =
+        window.location.pathname +
+        (params.toString() ? `?${params.toString()}` : '');
+      window.history.replaceState({}, '', newUrl);
+    } finally {
+      
+      setAuthReady(true);
+    }
+  })();
+}, [navigate]);
+
+if (!authReady) {
+  return <div>Loading...</div>;
+}
 
   return (
   <div className={location.pathname === '/login' ? 'min-h-screen bg-black text-white' : 'min-h-screen bg-white text-black'}>
