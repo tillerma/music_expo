@@ -3,7 +3,6 @@ import { Home, Compass, Music, User } from 'lucide-react';
 
 export function Root() {
   const location = useLocation();
-  // No automatic redirect for unauthenticated users — allow public access to pages
 
   const navItems = [
     { path: '/', icon: Home, label: 'Feed' },
@@ -21,40 +20,31 @@ export function Root() {
 
   return (
     <div className="min-h-screen bg-white text-black">
-      {location.pathname === '/login' ? (
-        // Render login page full-bleed so its rainbow background can fill the viewport
-        <div className="min-h-screen">
-          <Outlet />
-        </div>
-      ) : (
-        <div className="max-w-2xl mx-auto pb-20">
-          <Outlet />
-        </div>
-      )}
+      <div className="max-w-2xl mx-auto pb-20">
+        <Outlet />
+      </div>
 
-      {/* Bottom Navigation - hidden on /login */}
-      {location.pathname !== '/login' && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-black">
-          <div className="max-w-2xl mx-auto flex justify-around items-center h-16 px-4">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const active = isActive(item.path);
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`flex flex-col items-center gap-1 transition-colors ${
-                    active ? 'text-black' : 'text-gray-400'
-                  }`}
-                >
-                  <Icon className="w-6 h-6" strokeWidth={active ? 2.5 : 2} />
-                  <span className="text-xs font-medium">{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
-      )}
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-black">
+        <div className="max-w-2xl mx-auto flex justify-around items-center h-16 px-4">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const active = isActive(item.path);
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`flex flex-col items-center gap-1 transition-colors ${
+                  active ? 'text-black' : 'text-gray-400'
+                }`}
+              >
+                <Icon className="w-6 h-6" strokeWidth={active ? 2.5 : 2} />
+                <span className="text-xs font-medium">{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

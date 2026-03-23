@@ -1,222 +1,129 @@
-/**
- * musicMapData.ts
- *
- * Data layer for the Music Map.
- *
- * DEV MODE (right now)
- *   Imports generatedMusicMap.json at build time — no server needed.
- *
- * PRODUCTION MODE (when you go live)
- *   The `useMusicMap` hook fetches from GET /api/music-map, which your
- *   backend serves from the database. No code changes needed in MusicMapPage —
- *   just swap the import at the bottom of this file.
- *
- * The Python script (generate_music_map.py) runs as a background job on your
- *   server and writes coordinates back to the DB. The frontend never calls it
- *   directly — it only reads the result via the API endpoint.
- */
+import { User } from '../types';
+import { users } from './mockData';
 
-import { useState, useEffect } from 'react';
-import rawData from './generatedMusicMap.json';
-
-// ─── Types (shared between dev and prod) ──────────────────────────────────────
-
-export type AudioFeatures = {
-  danceability:     number;
-  energy:           number;
-  valence:          number;
-  acousticness:     number;
-  instrumentalness: number;
-  liveness:         number;
-  speechiness:      number;
-  tempo:            number;
-  loudness:         number;
-};
-
-export type MapPost = {
-  userId:    string;
-  songTitle: string;
-  artist:    string;
-  caption:   string;
-  features:  AudioFeatures;
-  postedAt:  string;
-};
-
-export type MapUser = {
-  id:          string;
-  username:    string;
-  displayName: string;
-  avatarUrl:   string | null;
-};
-
-export type UserMapPosition = {
-  user:      MapUser;
-  x:         number;
-  y:         number;
-  songToday: MapPost;
-};
-
-export type MapLoadState =
-  | { status: 'loading' }
-  | { status: 'ready';   positions: UserMapPosition[] }
-  | { status: 'error';   message: string };
-
-// ─── Synthetic user fallback (dev only) ───────────────────────────────────────
-
-const ANON_NAMES = [
-  'wavecatcher', 'basshead',   'melodica',   'groovebot',  'sinewave',
-  'chordcrush',  'tempohead',  'subfreq',    'pitchpine',  'loophole',
-  'beatsync',    'reverbcat',  'trackmind',  'vinyljinn',  'soundbyte',
-  'ritardando',  'cadenzio',   'arpeggist',  'leitmotif',  'coda_kid',
-  'dropbeat',    'fadeout',    'cuttime',    'halfstep',   'modwheel',
-  'glissando',   'tremolux',   'waveform',   'sidechain',  'lofi_haus',
-  'chromatic9',  'sustain_',   'flangehead', 'notewise',   'beatcraft',
-  'overtone_',   'bassclef',   'arpwave',    'mixdown',    'audionaut',
-  'polyrhythm',  'distortion', 'pitchdeck',  'synthpulse', 'resampler',
-  'drumnbass',   'vocalchop',  'patchbay',   'kickdrum',   'hifiuser',
-];
-
-const MOCK_CAPTIONS = [
-  'this one has been on repeat all week',
-  'found this gem at 2am, no regrets',
-  'the bridge in this song destroys me every time',
-  'perfect for a rainy tuesday honestly',
-  'my roommate hates that i play this so loud',
-  'this is what healing sounds like',
-  'cannot stop thinking about the production on this',
-  'three years later and it still hits different',
-  'played this at sunrise and cried a little',
-  'underrated. i said what i said.',
-];
-
-function syntheticUser(userId: string): MapUser {
-  const num = parseInt(userId.replace(/\D/g, ''), 10) || 0;
-  const name = ANON_NAMES[(num - 1) % ANON_NAMES.length] ?? `user_${num}`;
-  return {
-    id:          userId,
-    username:    name,
-    displayName: name.charAt(0).toUpperCase() + name.slice(1),
-    avatarUrl:   null,
+export interface UserMapPosition {
+  user: User;
+  x: number; // -100 to 100 (left to right)
+  y: number; // -100 to 100 (bottom to top)
+  songToday: {
+    songTitle: string;
+    artist: string;
+    genre: string;
   };
 }
 
-function mockCaption(userId: string, songTitle: string): string {
-  let h = 0;
-  for (const c of userId + songTitle) h = (h * 31 + c.charCodeAt(0)) >>> 0;
-  return MOCK_CAPTIONS[h % MOCK_CAPTIONS.length];
-}
-
-// ─── Raw → typed position (used by both dev and prod paths) ──────────────────
-
-export function hydratePosition(
-  raw: any,
-  resolveUser: (id: string) => MapUser,
-): UserMapPosition {
-  const user = resolveUser(raw.userId);
-  return {
-    user,
-    x: raw.x,
-    y: raw.y,
+export const userMapPositions: UserMapPosition[] = [
+  {
+    user: users[1], // Maya Rodriguez
+    x: -65,
+    y: 45,
     songToday: {
-      userId:    raw.userId,
-      songTitle: raw.songToday.songTitle,
-      artist:    raw.songToday.artist,
-      caption:   raw.songToday.caption ?? mockCaption(raw.userId, raw.songToday.songTitle),
-      features:  raw.songToday.features as AudioFeatures,
-      postedAt:  raw.songToday.postedAt ?? new Date().toISOString(),
+      songTitle: 'Seventeen',
+      artist: 'Sharon Van Etten',
+      genre: 'Indie Folk',
     },
-  };
-}
-
-// ─── DEV: static JSON import ──────────────────────────────────────────────────
-// This is what runs right now. Switch to `useMusicMapLive` when the API exists.
-
-const DEV_POSITIONS: UserMapPosition[] = (rawData as any[]).map(d =>
-  hydratePosition(d, syntheticUser)
-);
-
-/** Dev hook — synchronous, no loading state needed. */
-export function useMusicMapDev(): MapLoadState {
-  return { status: 'ready', positions: DEV_POSITIONS };
-}
-
-// ─── PROD: live API hook ──────────────────────────────────────────────────────
-/**
- * Fetches map positions from your backend API.
- *
- * Your backend endpoint (GET /api/music-map) should return:
- * {
- *   positions: Array<{
- *     userId:    string,
- *     x:         number,
- *     y:         number,
- *     songToday: { songTitle, artist, caption, features, postedAt }
- *   }>,
- *   users: Array<{
- *     id, username, displayName, avatarUrl
- *   }>,
- *   computedAt: string   // ISO timestamp of last recompute
- * }
- *
- * The hook re-fetches every `refreshIntervalMs` (default 5 minutes).
- * MusicMapPage smoothly animates nodes to new positions when data refreshes.
- */
-export function useMusicMapLive(
-  apiUrl = '/api/music-map',
-  refreshIntervalMs = 5 * 60 * 1000,  // 5 minutes
-): MapLoadState {
-  const [state, setState] = useState<MapLoadState>({ status: 'loading' });
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function fetchPositions() {
-      try {
-        const res = await fetch(apiUrl);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-
-        if (cancelled) return;
-
-        // Build a user lookup map from the response
-        const userMap = new Map<string, MapUser>(
-          (data.users ?? []).map((u: any) => [u.id, {
-            id:          u.id,
-            username:    u.username,
-            displayName: u.displayName,
-            avatarUrl:   u.avatarUrl ?? null,
-          }])
-        );
-
-        const resolveUser = (id: string): MapUser =>
-          userMap.get(id) ?? syntheticUser(id);
-
-        const positions = (data.positions ?? []).map((raw: any) =>
-          hydratePosition(raw, resolveUser)
-        );
-
-        setState({ status: 'ready', positions });
-      } catch (err) {
-        if (!cancelled) {
-          setState({ status: 'error', message: String(err) });
-        }
-      }
-    }
-
-    fetchPositions();
-    const interval = setInterval(fetchPositions, refreshIntervalMs);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, [apiUrl, refreshIntervalMs]);
-
-  return state;
-}
-
-// ─── Active export ────────────────────────────────────────────────────────────
-// Swap this one line when going live:
-//   DEV:  export const useMusicMap = useMusicMapDev;
-//   PROD: export const useMusicMap = useMusicMapLive;
-export const useMusicMap = useMusicMapDev;
-
-// Legacy sync export for backward compat during migration
-// (MusicMapPage currently reads this directly — update it to use the hook)
-export const userMapPositions: UserMapPosition[] = DEV_POSITIONS;
+  },
+  {
+    user: users[2], // Jordan Kim
+    x: -50,
+    y: 30,
+    songToday: {
+      songTitle: 'Re: Stacks',
+      artist: 'Bon Iver',
+      genre: 'Indie Folk',
+    },
+  },
+  {
+    user: users[3], // Sam Taylor
+    x: 60,
+    y: -40,
+    songToday: {
+      songTitle: 'Midnight City',
+      artist: 'M83',
+      genre: 'Synth Pop',
+    },
+  },
+  {
+    user: users[0], // Current User
+    x: -30,
+    y: 15,
+    songToday: {
+      songTitle: 'Holocene',
+      artist: 'Bon Iver',
+      genre: 'Indie Folk',
+    },
+  },
+  // Additional users for more variety
+  {
+    user: {
+      id: 'user-5',
+      username: 'jazzlover',
+      displayName: 'Nina Simone Fan',
+      bio: 'jazz is life',
+      avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b21hbiUyMHBvcnRyYWl0JTIwc21pbGV8ZW58MXx8fHwxNzcwODU5MjgyfDA&ixlib=rb-4.1.0&q=80&w=1080',
+      followers: 145,
+      following: 89,
+    },
+    x: -20,
+    y: -65,
+    songToday: {
+      songTitle: 'Blue in Green',
+      artist: 'Miles Davis',
+      genre: 'Jazz',
+    },
+  },
+  {
+    user: {
+      id: 'user-6',
+      username: 'synthwave99',
+      displayName: 'Retro Future',
+      bio: 'living in 1984',
+      avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtYW4lMjBwb3J0cmFpdCUyMGNhc3VhbHxlbnwxfHx8fDE3NzA4NTkyODJ8MA&ixlib=rb-4.1.0&q=80&w=1080',
+      followers: 298,
+      following: 156,
+    },
+    x: 75,
+    y: -55,
+    songToday: {
+      songTitle: 'Outro',
+      artist: 'M83',
+      genre: 'Synth Pop',
+    },
+  },
+  {
+    user: {
+      id: 'user-7',
+      username: 'bedroom_pop',
+      displayName: 'Lola Martinez',
+      bio: 'soft sounds for soft souls',
+      avatarUrl: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx3b21hbiUyMHBvcnRyYWl0JTIweW91bmd8ZW58MXx8fHwxNzcwODU5MjgzfDA&ixlib=rb-4.1.0&q=80&w=1080',
+      followers: 423,
+      following: 302,
+    },
+    x: -75,
+    y: 60,
+    songToday: {
+      songTitle: 'Apocalypse',
+      artist: 'Cigarettes After Sex',
+      genre: 'Dream Pop',
+    },
+  },
+  {
+    user: {
+      id: 'user-8',
+      username: 'techno_head',
+      displayName: 'Marcus Berlin',
+      bio: '4/4 forever',
+      avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtYW4lMjBwb3J0cmFpdCUyMGJlYXJkfGVufDF8fHx8MTc3MDg1OTI4M3ww&ixlib=rb-4.1.0&q=80&w=1080',
+      followers: 567,
+      following: 234,
+    },
+    x: 85,
+    y: 20,
+    songToday: {
+      songTitle: 'Windowlicker',
+      artist: 'Aphex Twin',
+      genre: 'Electronic',
+    },
+  },
+];

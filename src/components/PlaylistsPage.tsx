@@ -232,12 +232,7 @@ export function PlaylistsPage() {
               {selectedPlaylist.songs.map((song) => (
                 <div
                   key={song.id}
-                  onClick={() => {
-                    // open the song in Spotify in a new tab
-                    const url = song.spotifyUrl || `https://open.spotify.com/track/${song.id}`;
-                    window.open(url, '_blank', 'noopener');
-                  }}
-                  className="flex gap-3 p-3 bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] cursor-pointer"
+                  className="flex gap-3 p-3 bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
                 >
                   <img
                     src={song.albumArt}
@@ -250,10 +245,7 @@ export function PlaylistsPage() {
                   </div>
                   {selectedPlaylist.id !== 'playlist-master' && (
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveSong(selectedPlaylist.id, song.id);
-                      }}
+                      onClick={() => handleRemoveSong(selectedPlaylist.id, song.id)}
                       className="p-2 hover:bg-red-100 border-2 border-black bg-white transition-colors self-center"
                     >
                       <Trash2 className="w-4 h-4 text-black" />

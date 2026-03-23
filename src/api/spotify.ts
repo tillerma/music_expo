@@ -1,4 +1,5 @@
 import { getToken } from '../utils/spotifyAuth';
+import type { SpotifyUser, SpotifyPlaylist, SpotifyTrack } from '../types';
 
 async function spotifyFetch<T>(endpoint: string): Promise<T> {
   const token = getToken();
@@ -12,14 +13,16 @@ async function spotifyFetch<T>(endpoint: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export const getCurrentUser = () => spotifyFetch<any>('/me');
+export const getCurrentUser = () =>
+  spotifyFetch<SpotifyUser>('/me');
 
 export const getUserPlaylists = () =>
-  spotifyFetch<{ items: any }[]>('/me/playlists');
+  spotifyFetch<{ items: SpotifyPlaylist[] }>('/me/playlists');
 
 export const searchTracks = (query: string) =>
-  spotifyFetch<{ tracks: { items: any[] } }>(
+  spotifyFetch<{ tracks: { items: SpotifyTrack[] } }>(
     `/search?q=${encodeURIComponent(query)}&type=track`
   );
 
-export const getTopTracks = () => spotifyFetch<{ items: any[] }>('/me/top/tracks');
+export const getTopTracks = () =>
+  spotifyFetch<{ items: SpotifyTrack[] }>('/me/top/tracks');
