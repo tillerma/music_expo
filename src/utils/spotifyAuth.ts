@@ -10,6 +10,22 @@ const SCOPES = [
   'playlist-read-private',
 ];
 
+// Quick runtime validation for environment config.
+function ensureClientConfig() {
+  const missing = !CLIENT_ID || CLIENT_ID === 'YOUR_CLIENT_ID' || CLIENT_ID.toLowerCase().includes('your client');
+  const missingRedirect = !REDIRECT_URI || REDIRECT_URI === 'YOUR_REDIRECT_URI';
+  if (missing || missingRedirect) {
+    // Provide a clearer, actionable error message for developers.
+    const parts: string[] = [];
+    if (missing) parts.push('VITE_SPOTIFY_CLIENT_ID is not set or is a placeholder');
+    if (missingRedirect) parts.push('VITE_REDIRECT_URI is not set or is a placeholder');
+    const msg = `Spotify auth misconfigured: ${parts.join('; ')}. See README and set these in your .env or host environment.`;
+    // Log to console and throw so the caller can handle it (and tests will fail loudly).
+    console.error(msg);
+    throw new Error(msg);
+  }
+}
+
 // ─── PKCE Helpers (Approach 2's spec-correct implementation) ──
 function base64UrlEncode(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
@@ -41,6 +57,7 @@ async function generateCodeChallenge(verifier: string): Promise<string> {
 
 // ─── Auth Functions ────────────────────────────────────────
 export async function loginWithSpotify(showDialog = false): Promise<void> {
+  ensureClientConfig();
   const verifier = generateCodeVerifier();
   const challenge = await generateCodeChallenge(verifier);
 
@@ -61,6 +78,7 @@ export async function loginWithSpotify(showDialog = false): Promise<void> {
 }
 
 export async function exchangeCodeForToken(code: string): Promise<void> {
+  ensureClientConfig();
   const verifier = sessionStorage.getItem('spotify_verifier');
   if (!verifier) throw new Error('No code verifier found in session');
 
