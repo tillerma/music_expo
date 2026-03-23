@@ -1,24 +1,9 @@
-import { Outlet, Link, useLocation, useNavigate } from 'react-router';
-import { useEffect } from 'react';
+import { Outlet, Link, useLocation } from 'react-router';
 import { Home, Compass, Music, User } from 'lucide-react';
-import { isLoggedIn } from '../utils/spotifyAuth';
 
 export function Root() {
   const location = useLocation();
-  const navigate = useNavigate();
-
-  // Redirect to /login when there's no authenticated Spotify user
-  // but avoid redirecting when already on the login page to prevent loops.
-  useEffect(() => {
-    try {
-      if (!isLoggedIn() && location.pathname !== '/login') {
-        navigate('/login');
-      }
-    } catch (err) {
-      // fallback: if isLoggedIn throws, navigate to login
-      if (location.pathname !== '/login') navigate('/login');
-    }
-  }, [location.pathname, navigate]);
+  // No automatic redirect for unauthenticated users — allow public access to pages
 
   const navItems = [
     { path: '/', icon: Home, label: 'Feed' },
