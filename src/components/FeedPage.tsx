@@ -37,6 +37,22 @@ export function FeedPage() {
           followers,
           following
         ),
+        songs!posts_song_id_fkey (
+          id,
+          spotify_url,
+          song_title,
+          artist,
+          album_art,
+          danceability,
+          energy,
+          valence,
+          acousticness,
+          instrumentalness,
+          liveness,
+          speechiness,
+          tempo,
+          loudness
+        ),
         reactions (
           id,
           emoji,
@@ -75,12 +91,12 @@ export function FeedPage() {
           followers: post.profiles?.followers ?? 0,
           following: post.profiles?.following ?? 0,
         },
-        spotifyUrl: post.spotify_url,
-        albumArt: post.album_art,
-        songTitle: post.song_title,
-        artist: post.artist,
-        caption: post.caption,
-        date: post.post_date,
+        spotifyUrl: post.songs?.spotify_url ?? '',
+        albumArt: post.songs?.album_art ?? 'https://placehold.co/200x200',
+        songTitle: post.songs?.song_title ?? 'Unknown Song',
+        artist: post.songs?.artist ?? 'Unknown Artist',
+        caption: post.caption ?? '',
+        date: post.post_date ?? '',
         reactions: (post.reactions || []).map((reaction: any) => ({
           emoji: reaction.emoji,
           userId: reaction.user_id,
@@ -139,21 +155,119 @@ export function FeedPage() {
     fetchTodayEmojis();
   }, []);
 
+  async function getOrCreateSong({
+    spotifyUrl,
+    songTitle,
+    artist,
+    albumArt,
+    danceability,
+    energy,
+    valence,
+    acousticness,
+    instrumentalness,
+    liveness,
+    speechiness,
+    tempo,
+    loudness,
+  }: {
+    spotifyUrl: string;
+    songTitle: string;
+    artist: string;
+    albumArt: string;
+    danceability?: number | null;
+    energy?: number | null;
+    valence?: number | null;
+    acousticness?: number | null;
+    instrumentalness?: number | null;
+    liveness?: number | null;
+    speechiness?: number | null;
+    tempo?: number | null;
+    loudness?: number | null;
+  }) {
+    const trimmedUrl = spotifyUrl.trim();
+
+    const { data: existingSong, error: existingSongError } = await supabase
+      .from('songs')
+      .select('id')
+      .eq('spotify_url', trimmedUrl)
+      .maybeSingle();
+
+    if (existingSongError) {
+      console.error('Error checking existing song:', existingSongError);
+      throw existingSongError;
+    }
+
+    if (existingSong?.id) {
+      return existingSong.id;
+    }
+
+    const newSongId = crypto.randomUUID();
+
+    const { error: insertSongError } = await supabase
+      .from('songs')
+      .insert({
+        id: newSongId,
+        spotify_url: trimmedUrl,
+        song_title: songTitle,
+        artist: artist,
+        album_art: albumArt,
+        danceability: danceability ?? null,
+        energy: energy ?? null,
+        valence: valence ?? null,
+        acousticness: acousticness ?? null,
+        instrumentalness: instrumentalness ?? null,
+        liveness: liveness ?? null,
+        speechiness: speechiness ?? null,
+        tempo: tempo ?? null,
+        loudness: loudness ?? null,
+      });
+
+    if (insertSongError) {
+      console.error('Error inserting song:', insertSongError);
+      throw insertSongError;
+    }
+
+    return newSongId;
+  }
+
   async function handleCreatePost() {
     if (!spotifyUrl.trim() || !caption.trim()) return;
 
     try {
       setIsPosting(true);
 
+      // Temporary placeholders until Spotify metadata fetch is wired
+      const songTitle = 'Song Title from Spotify';
+      const artist = 'Artist from Spotify';
+      const albumArt = 'https://placehold.co/200x200';
+
+      const songId = await getOrCreateSong({
+        spotifyUrl,
+        songTitle,
+        artist,
+        albumArt,
+        danceability: null,
+        energy: null,
+        valence: null,
+        acousticness: null,
+        instrumentalness: null,
+        liveness: null,
+        speechiness: null,
+        tempo: null,
+        loudness: null,
+      });
+
       const newPost = {
-        id: crypto.randomUUID(), // will change
-        user_id: 'user-1', // temporary until auth integrated
+        id: crypto.randomUUID(),
+        user_id: currentUser.id, // or 'user-1' if that's what you're using
+        song_id: songId,
         spotify_url: spotifyUrl.trim(),
-        album_art: 'https://placehold.co/200x200',
-        song_title: 'Song Title from Spotty',
-        artist: 'Artist from Spotty',
+        song_title: songTitle,
+        artist: artist,
+        album_art: albumArt,
         caption: caption.trim(),
         post_date: new Date().toISOString().split('T')[0],
+        created_at: new Date().toISOString(),
       };
 
       const { error } = await supabase
@@ -170,6 +284,8 @@ export function FeedPage() {
       setShowNewPost(false);
 
       await fetchPosts();
+    } catch (err) {
+      console.error('handleCreatePost failed:', err);
     } finally {
       setIsPosting(false);
     }
