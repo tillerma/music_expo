@@ -14,7 +14,9 @@ export function Root() {
   ];
 
   const isActive = (path: string) => {
-    if (path === '/') return location.pathname === '/';
+    if (path === '/') {
+      return location.pathname === '/';
+    }
     return location.pathname.startsWith(path);
   };
 
@@ -44,7 +46,7 @@ export function Root() {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex flex-col items-center gap-1 ${
+                className={`flex flex-col items-center gap-1 transition-colors ${
                   active ? 'text-black' : 'text-gray-400'
                 }`}
               >
