@@ -19,10 +19,25 @@ export function FeedPage() {
 
   useEffect(() => {
     async function fetchPosts() {
+      // const { data, error } = await supabase
+      //   .from('posts')
+      //   .select('*')
+      //   .order('created_at', { ascending: false });
       const { data, error } = await supabase
-        .from('posts')
-        .select('*')
-        .order('created_at', { ascending: false });
+      .from('posts')
+      .select(`
+        *,
+        profiles!posts_user_id_fkey (
+          id,
+          username,
+          display_name,
+          bio,
+          avatar_url,
+          followers,
+          following
+        )
+      `)
+      .order('created_at', { ascending: false });
 
       console.log('SUPABASE DATA:', data);
 
@@ -35,13 +50,13 @@ export function FeedPage() {
         id: post.id,
         userId: post.user_id,
         user: {
-          id: post.user_id,
-          username: post.user_id,
-          displayName: post.user_id,
-          bio: '',
-          avatarUrl: 'https://placehold.co/100x100',
-          followers: 0,
-          following: 0,
+          id: post.profiles?.id ?? post.user_id,
+          username: post.profiles?.username ?? post.user_id,
+          displayName: post.profiles?.display_name ?? post.user_id,
+          bio: post.profiles?.bio ?? '',
+          avatarUrl: post.profiles?.avatar_url ?? 'https://placehold.co/100x100',
+          followers: post.profiles?.followers ?? 0,
+          following: post.profiles?.following ?? 0,
         },
         spotifyUrl: post.spotify_url,
         albumArt: post.album_art,
