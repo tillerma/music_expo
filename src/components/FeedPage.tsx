@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
+import { isLoggedIn, logout } from '../utils/spotifyAuth';
 import { songPosts as initialPosts, dailyEmojiSets, currentUser } from '../data/mockData';
 import { searchTracks } from '../api/spotify';
 import { SongPost, Comment } from '../types';
@@ -84,12 +85,9 @@ export function FeedPage() {
       <div className="sticky top-0 bg-white border-b-4 border-black z-10">
         <div className="px-4 py-4 flex justify-between items-center relative">
           <div className="flex items-center gap-3">
-            <Link
-              to="/login"
-              className="inline-block mr-2 bg-white border-2 border-black px-3 py-1 font-bold text-sm hover:bg-gray-100"
-            >
-              Log in
-            </Link>
+            {/* Show Log out when there's an active Spotify session */}
+            {/**/}
+            <AuthButton />
             <div>
               <h1 className="text-xl font-bold">Today's Songs</h1>
               <p className="text-sm text-gray-600">February 12, 2026</p>
@@ -268,6 +266,42 @@ export function FeedPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function AuthButton() {
+  const navigate = useNavigate();
+  const [loggedIn, setLoggedIn] = useState(() => isLoggedIn());
+
+  useEffect(() => {
+    // Re-check on mount in case auth state changed elsewhere
+    setLoggedIn(isLoggedIn());
+  }, []);
+
+  const handleLogout = () => {
+    logout();
+    setLoggedIn(false);
+    navigate('/login');
+  };
+
+  if (loggedIn) {
+    return (
+      <button
+        onClick={handleLogout}
+        className="inline-block mr-2 bg-white border-2 border-black px-3 py-1 font-bold text-sm hover:bg-gray-100"
+      >
+        Log out
+      </button>
+    );
+  }
+
+  return (
+    <Link
+      to="/login"
+      className="inline-block mr-2 bg-white border-2 border-black px-3 py-1 font-bold text-sm hover:bg-gray-100"
+    >
+      Log in
+    </Link>
   );
 }
 
