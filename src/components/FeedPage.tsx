@@ -169,7 +169,7 @@ export function FeedPage() {
     speechiness,
     tempo,
     loudness,
-  }: {
+  }: { // ******* TODO: FILL WITH SPOTIFY API INFO *******
     spotifyUrl: string;
     songTitle: string;
     artist: string;
@@ -236,7 +236,7 @@ export function FeedPage() {
     try {
       setIsPosting(true);
 
-      // Temporary placeholders until Spotify metadata fetch is wired
+      // ******* TODO: FILL WITH SPOTIFY API INFO *******
       const songTitle = 'Song Title from Spotify';
       const artist = 'Artist from Spotify';
       const albumArt = 'https://placehold.co/200x200';
