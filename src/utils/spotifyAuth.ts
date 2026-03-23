@@ -184,7 +184,7 @@ export async function handleCallback(): Promise<boolean> {
   cleanUrl.searchParams.delete('code');
   cleanUrl.searchParams.delete('state');
   window.history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search);
-
+  
   return true;
 }
 
