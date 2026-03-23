@@ -1,8 +1,17 @@
-import { useState, useEffect } from 'react';
-import { songPosts as initialPosts, dailyEmojiSets, currentUser } from '../data/mockData';
+import { useState, useEffect, useRef } from 'react';
+import { currentUser } from '../data/mockData';
 import { SongPost, Comment } from '../types';
 import { ChevronDown, ChevronUp, MessageCircle, ExternalLink } from 'lucide-react';
-import { supabase } from '../lib/supabase'
+import { supabase } from '../lib/supabase';
+import { searchTracks, getAudioFeatures } from '../api/spotify';
+
+interface TrackResult {
+  id: string;
+  name: string;
+  artists: Array<{ name: string }>;
+  album: { images: Array<{ url: string }> };
+  external_urls: { spotify: string };
+}
 
 interface SongPostComponentProps {
   post: SongPost;
@@ -12,16 +21,18 @@ interface SongPostComponentProps {
 }
 
 export function FeedPage() {
-  const todayEmojiSet = dailyEmojiSets[0];
-  // const [posts, setPosts] = useState(initialPosts.filter(p => p.date === '2026-02-12'));
   const [posts, setPosts] = useState<SongPost[]>([]);
   const [showNewPost, setShowNewPost] = useState(false);
-  // for today's post
-  const [spotifyUrl, setSpotifyUrl] = useState('');
   const [caption, setCaption] = useState('');
   const [isPosting, setIsPosting] = useState(false);
-  // emoji set of day
   const [emojiSet, setEmojiSet] = useState<string[]>([]);
+
+  // search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<TrackResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedTrack, setSelectedTrack] = useState<TrackResult | null>(null);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function fetchPosts() {
       const { data, error } = await supabase
@@ -230,59 +241,113 @@ export function FeedPage() {
     return newSongId;
   }
 
+  function handleSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const query = e.target.value;
+    setSearchQuery(query);
+    setSelectedTrack(null);
+
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    searchDebounceRef.current = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const result = await searchTracks(query);
+        setSearchResults(result.tracks.items.slice(0, 8) as TrackResult[]);
+      } catch (err) {
+        console.error('Search failed:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 400);
+  }
+
+  function handleSelectTrack(track: TrackResult) {
+    setSelectedTrack(track);
+    setSearchQuery(track.name);
+    setSearchResults([]);
+  }
+
+  function handleCloseModal() {
+    setShowNewPost(false);
+    setSearchQuery('');
+    setSearchResults([]);
+    setSelectedTrack(null);
+    setCaption('');
+  }
+
   async function handleCreatePost() {
-    if (!spotifyUrl.trim() || !caption.trim()) return;
+    if (!selectedTrack || !caption.trim()) return;
 
     try {
       setIsPosting(true);
 
-      // Temporary placeholders until Spotify metadata fetch is wired
-      const songTitle = 'Song Title from Spotify';
-      const artist = 'Artist from Spotify';
-      const albumArt = 'https://placehold.co/200x200';
+      const spotifyUrl = selectedTrack.external_urls.spotify;
+      const songTitle = selectedTrack.name;
+      const artist = selectedTrack.artists.map((a) => a.name).join(', ');
+      const albumArt = selectedTrack.album.images[0]?.url ?? 'https://placehold.co/200x200';
+
+      let audioFeatures = {
+        danceability: null as number | null,
+        energy: null as number | null,
+        valence: null as number | null,
+        acousticness: null as number | null,
+        instrumentalness: null as number | null,
+        liveness: null as number | null,
+        speechiness: null as number | null,
+        tempo: null as number | null,
+        loudness: null as number | null,
+      };
+
+      try {
+        const features = await getAudioFeatures(selectedTrack.id);
+        audioFeatures = {
+          danceability: features.danceability,
+          energy: features.energy,
+          valence: features.valence,
+          acousticness: features.acousticness,
+          instrumentalness: features.instrumentalness,
+          liveness: features.liveness,
+          speechiness: features.speechiness,
+          tempo: features.tempo,
+          loudness: features.loudness,
+        };
+      } catch (err) {
+        console.warn('Could not fetch audio features:', err);
+      }
 
       const songId = await getOrCreateSong({
         spotifyUrl,
         songTitle,
         artist,
         albumArt,
-        danceability: null,
-        energy: null,
-        valence: null,
-        acousticness: null,
-        instrumentalness: null,
-        liveness: null,
-        speechiness: null,
-        tempo: null,
-        loudness: null,
+        ...audioFeatures,
       });
 
       const newPost = {
         id: crypto.randomUUID(),
-        user_id: currentUser.id, // or 'user-1' if that's what you're using
+        user_id: currentUser.id,
         song_id: songId,
-        spotify_url: spotifyUrl.trim(),
+        spotify_url: spotifyUrl,
         song_title: songTitle,
-        artist: artist,
+        artist,
         album_art: albumArt,
         caption: caption.trim(),
         post_date: new Date().toISOString().split('T')[0],
         created_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase
-        .from('posts')
-        .insert(newPost);
+      const { error } = await supabase.from('posts').insert(newPost);
 
       if (error) {
         console.error('Error creating post:', error);
         return;
       }
 
-      setSpotifyUrl('');
-      setCaption('');
-      setShowNewPost(false);
-
+      handleCloseModal();
       await fetchPosts();
     } catch (err) {
       console.error('handleCreatePost failed:', err);
@@ -395,13 +460,60 @@ export function FeedPage() {
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white border-4 border-black p-6 w-full max-w-md shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
             <h2 className="text-xl font-bold mb-4">SHARE TODAY'S SONG</h2>
-            <input
-              type="text"
-              placeholder="Spotify URL"
-              value={spotifyUrl}
-              onChange={(e) => setSpotifyUrl(e.target.value)}
-              className="w-full bg-yellow-100 border-2 border-black px-4 py-2 mb-3 focus:outline-none focus:border-purple-500"
-            />
+
+            {/* Search input */}
+            <div className="relative mb-3">
+              <input
+                type="text"
+                placeholder="Search for a song or artist..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+                className="w-full bg-yellow-100 border-2 border-black px-4 py-2 focus:outline-none focus:border-purple-500"
+                autoComplete="off"
+              />
+              {isSearching && (
+                <span className="absolute right-3 top-2.5 text-xs text-gray-500">searching…</span>
+              )}
+
+              {/* Dropdown results */}
+              {searchResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 border-2 border-black bg-white z-10 max-h-60 overflow-y-auto shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                  {searchResults.map((track) => (
+                    <button
+                      key={track.id}
+                      onClick={() => handleSelectTrack(track)}
+                      className="w-full flex items-center gap-3 px-3 py-2 hover:bg-yellow-100 text-left border-b border-gray-200 last:border-b-0"
+                    >
+                      <img
+                        src={track.album.images[track.album.images.length - 1]?.url ?? 'https://placehold.co/40x40'}
+                        alt={track.name}
+                        className="w-10 h-10 border border-black object-cover flex-shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <p className="font-bold text-sm truncate">{track.name}</p>
+                        <p className="text-xs text-gray-600 truncate">{track.artists.map((a) => a.name).join(', ')}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Selected song preview */}
+            {selectedTrack && (
+              <div className="flex items-center gap-3 mb-3 p-3 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                <img
+                  src={selectedTrack.album.images[0]?.url ?? 'https://placehold.co/64x64'}
+                  alt={selectedTrack.name}
+                  className="w-16 h-16 border-2 border-black object-cover flex-shrink-0"
+                />
+                <div className="min-w-0">
+                  <p className="font-bold truncate">{selectedTrack.name}</p>
+                  <p className="text-sm text-gray-600 truncate">{selectedTrack.artists.map((a) => a.name).join(', ')}</p>
+                </div>
+              </div>
+            )}
+
             <textarea
               placeholder="Caption (max 140 characters)"
               maxLength={140}
@@ -411,17 +523,17 @@ export function FeedPage() {
             />
             <div className="flex gap-2">
               <button
-                onClick={() => setShowNewPost(false)}
+                onClick={handleCloseModal}
                 className="flex-1 bg-gray-200 border-2 border-black px-4 py-2 font-bold hover:bg-gray-300 transition-colors"
               >
                 CANCEL
               </button>
               <button
-                  onClick={handleCreatePost}
-                  disabled={isPosting || !spotifyUrl.trim() || !caption.trim()}
-                  className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-4 py-2 font-bold hover:translate-x-0.5 hover:translate-y-0.5 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isPosting ? 'POSTING...' : 'POST'}
+                onClick={handleCreatePost}
+                disabled={isPosting || !selectedTrack || !caption.trim()}
+                className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-4 py-2 font-bold hover:translate-x-0.5 hover:translate-y-0.5 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isPosting ? 'POSTING...' : 'POST'}
               </button>
             </div>
           </div>
