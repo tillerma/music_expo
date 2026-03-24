@@ -1,10 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { isLoggedIn, logout } from '../utils/spotifyAuth';
-import { songPosts as initialPosts, dailyEmojiSets, currentUser } from '../data/mockData';
-import { searchTracks } from '../api/spotify';
+import { currentUser } from '../auth/currentUserInfo';
+// import { currentUser } from '../data/mockData';
 import { SongPost, Comment } from '../types';
 import { ChevronDown, ChevronUp, MessageCircle, ExternalLink } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { searchTracks, getAudioFeatures } from '../api/spotify';
+
+interface TrackResult {
+  id: string;
+  name: string;
+  artists: Array<{ name: string }>;
+  album: { images: Array<{ url: string }> };
+  external_urls: { spotify: string };
+}
 
 interface SongPostComponentProps {
   post: SongPost;
@@ -14,8 +24,7 @@ interface SongPostComponentProps {
 }
 
 export function FeedPage() {
-  const todayEmojiSet = dailyEmojiSets[0];
-  const [posts, setPosts] = useState(initialPosts.filter(p => p.date === '2026-02-12'));
+  const [posts, setPosts] = useState<SongPost[]>([]);
   const [showNewPost, setShowNewPost] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -25,6 +34,10 @@ export function FeedPage() {
   const [newPostCaption, setNewPostCaption] = useState('');
 
   useEffect(() => {
+
+    fetchPosts();
+    fetchTodayEmojis();
+
     if (!searchQuery || searchQuery.trim().length < 3) {
       setSearchResults([]);
       setSearchError(null);
@@ -46,38 +59,392 @@ export function FeedPage() {
 
     return () => clearTimeout(handler);
   }, [searchQuery]);
+  const [caption, setCaption] = useState('');
+  const [isPosting, setIsPosting] = useState(false);
+  const [emojiSet, setEmojiSet] = useState<string[]>([]);
 
-  const handleReaction = (postId: string, emoji: string) => {
-    setPosts(posts.map(post => {
-      if (post.id === postId) {
-        const existingReaction = post.reactions.find(r => r.userId === 'user-1');
-        if (existingReaction) {
-          return {
-            ...post,
-            reactions: post.reactions.filter(r => r.userId !== 'user-1'),
-          };
-        } else {
-          return {
-            ...post,
-            reactions: [...post.reactions, { emoji, userId: 'user-1', userName: 'musiclover' }],
-          };
-        }
+  // search state
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  async function fetchPosts() {
+      const { data, error } = await supabase
+      .from('posts')
+      .select(`
+        *,
+        profiles!posts_user_id_fkey (
+          id,
+          username,
+          display_name,
+          bio,
+          avatar_url,
+          followers,
+          following
+        ),
+        songs!posts_song_id_fkey (
+          id,
+          spotify_url,
+          song_title,
+          artist,
+          album_art,
+          danceability,
+          energy,
+          valence,
+          acousticness,
+          instrumentalness,
+          liveness,
+          speechiness,
+          tempo,
+          loudness
+        ),
+        reactions (
+          id,
+          emoji,
+          user_id,
+          user_name
+        ),
+        comments (
+          id,
+          user_id,
+          caption,
+          song_title,
+          artist,
+          album_art,
+          spotify_url,
+          timestamp
+        )
+      `)
+      .order('created_at', { ascending: false });
+
+      console.log('SUPABASE DATA:', data);
+
+      if (error) {
+        console.error('Error fetching posts:', error);
+        return;
       }
-      return post;
-    }));
-  };
 
-  const handleAddComment = (postId: string, comment: Comment) => {
-    setPosts(posts.map(post => {
-      if (post.id === postId) {
-        return {
-          ...post,
-          comments: [...post.comments, comment],
+      const mappedPosts: SongPost[] = (data || []).map((post: any) => ({
+        id: post.id,
+        userId: post.user_id,
+        user: {
+          id: post.profiles?.id ?? post.user_id,
+          username: post.profiles?.username ?? post.user_id,
+          displayName: post.profiles?.display_name ?? post.user_id,
+          bio: post.profiles?.bio ?? '',
+          avatarUrl: post.profiles?.avatar_url ?? 'https://placehold.co/100x100',
+          followers: post.profiles?.followers ?? 0,
+          following: post.profiles?.following ?? 0,
+        },
+        spotifyUrl: post.songs?.spotify_url ?? '',
+        albumArt: post.songs?.album_art ?? 'https://placehold.co/200x200',
+        songTitle: post.songs?.song_title ?? 'Unknown Song',
+        artist: post.songs?.artist ?? 'Unknown Artist',
+        caption: post.caption ?? '',
+        date: post.post_date ?? '',
+        reactions: (post.reactions || []).map((reaction: any) => ({
+          emoji: reaction.emoji,
+          userId: reaction.user_id,
+          userName: reaction.user_name,
+        })),
+        comments: (post.comments || []).map((comment: any) => ({
+          id: comment.id,
+          userId: comment.user_id,
+          user: {
+            id: comment.user_id,
+            username: comment.user_id,
+            displayName: comment.user_id,
+            bio: '',
+            avatarUrl: 'https://placehold.co/100x100',
+            followers: 0,
+            following: 0,
+          },
+          caption: comment.caption,
+          timestamp: comment.timestamp,
+          song: comment.song_title
+            ? {
+                songTitle: comment.song_title,
+                artist: comment.artist ?? '',
+                albumArt: comment.album_art ?? 'https://placehold.co/100x100',
+                spotifyUrl: comment.spotify_url ?? '',
+              }
+            : undefined,
+        })),
+      }));
+
+      setPosts(mappedPosts);
+    }
+
+  async function fetchTodayEmojis() {
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const { data, error } = await supabase
+      .from('daily_emoji_sets')
+      .select('*')
+      .eq('date', todayStr)
+      .single();
+
+    console.log('EMOJI DATA:', data);
+    console.log('EMOJI ERROR:', error);
+
+    if (error) {
+      console.error('Error fetching emojis:', error);
+      return;
+    }
+
+    setEmojiSet(data?.emojis ?? []);
+  }
+
+  async function getOrCreateSong({
+    spotifyUrl,
+    songTitle,
+    artist,
+    albumArt,
+    danceability,
+    energy,
+    valence,
+    acousticness,
+    instrumentalness,
+    liveness,
+    speechiness,
+    tempo,
+    loudness,
+  }: { // ******* TODO: FILL WITH SPOTIFY API INFO *******
+    spotifyUrl: string;
+    songTitle: string;
+    artist: string;
+    albumArt: string;
+    danceability?: number | null;
+    energy?: number | null;
+    valence?: number | null;
+    acousticness?: number | null;
+    instrumentalness?: number | null;
+    liveness?: number | null;
+    speechiness?: number | null;
+    tempo?: number | null;
+    loudness?: number | null;
+  }) {
+    const trimmedUrl = spotifyUrl.trim();
+
+    const { data: existingSong, error: existingSongError } = await supabase
+      .from('songs')
+      .select('id')
+      .eq('spotify_url', trimmedUrl)
+      .maybeSingle();
+
+    if (existingSongError) {
+      console.error('Error checking existing song:', existingSongError);
+      throw existingSongError;
+    }
+
+    if (existingSong?.id) {
+      return existingSong.id;
+    }
+
+    const newSongId = crypto.randomUUID();
+
+    const { error: insertSongError } = await supabase
+      .from('songs')
+      .insert({
+        id: newSongId,
+        spotify_url: trimmedUrl,
+        song_title: songTitle,
+        artist: artist,
+        album_art: albumArt,
+        danceability: danceability ?? null,
+        energy: energy ?? null,
+        valence: valence ?? null,
+        acousticness: acousticness ?? null,
+        instrumentalness: instrumentalness ?? null,
+        liveness: liveness ?? null,
+        speechiness: speechiness ?? null,
+        tempo: tempo ?? null,
+        loudness: loudness ?? null,
+      });
+
+    if (insertSongError) {
+      console.error('Error inserting song:', insertSongError);
+      throw insertSongError;
+    }
+
+    return newSongId;
+  }
+
+  function handleSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const query = e.target.value;
+    setSearchQuery(query);
+    setSelectedTrack(null);
+
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    searchDebounceRef.current = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const result = await searchTracks(query);
+        setSearchResults(result.tracks.items.slice(0, 8) as TrackResult[]);
+      } catch (err) {
+        console.error('Search failed:', err);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 400);
+  }
+
+  function handleSelectTrack(track: TrackResult) {
+    setSelectedTrack(track);
+    setSearchQuery(track.name);
+    setSearchResults([]);
+  }
+
+  function handleCloseModal() {
+    setShowNewPost(false);
+    setSearchQuery('');
+    setSearchResults([]);
+    setSelectedTrack(null);
+    setCaption('');
+  }
+
+  async function handleCreatePost() {
+    if (!selectedTrack || !caption.trim()) return;
+
+    try {
+      setIsPosting(true);
+
+      const spotifyUrl = selectedTrack.external_urls.spotify;
+      const songTitle = selectedTrack.name;
+      const artist = selectedTrack.artists.map((a) => a.name).join(', ');
+      const albumArt = selectedTrack.album.images[0]?.url ?? 'https://placehold.co/200x200';
+
+      let audioFeatures = {
+        danceability: null as number | null,
+        energy: null as number | null,
+        valence: null as number | null,
+        acousticness: null as number | null,
+        instrumentalness: null as number | null,
+        liveness: null as number | null,
+        speechiness: null as number | null,
+        tempo: null as number | null,
+        loudness: null as number | null,
+      };
+
+      try {
+        const features = await getAudioFeatures(selectedTrack.id);
+        audioFeatures = {
+          danceability: features.danceability,
+          energy: features.energy,
+          valence: features.valence,
+          acousticness: features.acousticness,
+          instrumentalness: features.instrumentalness,
+          liveness: features.liveness,
+          speechiness: features.speechiness,
+          tempo: features.tempo,
+          loudness: features.loudness,
         };
+      } catch (err) {
+        console.warn('Could not fetch audio features:', err);
       }
-      return post;
-    }));
+
+      const songId = await getOrCreateSong({
+        spotifyUrl,
+        songTitle,
+        artist,
+        albumArt,
+        ...audioFeatures,
+      });
+
+      const newPost = {
+        id: crypto.randomUUID(),
+        user_id: currentUser.id,
+        song_id: songId,
+        spotify_url: spotifyUrl,
+        song_title: songTitle,
+        artist,
+        album_art: albumArt,
+        caption: caption.trim(),
+        post_date: new Date().toISOString().split('T')[0],
+        created_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase.from('posts').insert(newPost);
+
+      if (error) {
+        console.error('Error creating post:', error);
+        return;
+      }
+
+      handleCloseModal();
+      await fetchPosts();
+    } catch (err) {
+      console.error('handleCreatePost failed:', err);
+    } finally {
+      setIsPosting(false);
+    }
+  }
+
+  const handleReaction = async (postId: string, emoji: string) => {
+    const existingPost = posts.find((p) => p.id === postId);
+    const existingReaction = existingPost?.reactions.find(
+      (r) => r.userId === currentUser.id
+    );
+
+    if (existingReaction) {
+      const { error } = await supabase
+        .from('reactions')
+        .delete()
+        .eq('post_id', postId)
+        .eq('user_id', currentUser.id);
+
+      if (error) {
+        console.error('Error deleting reaction:', error);
+        return;
+      }
+    } else {
+      const { error } = await supabase.from('reactions').insert({
+        id: crypto.randomUUID(),
+        post_id: postId,
+        emoji,
+        user_id: currentUser.id,
+        user_name: currentUser.username,
+      });
+
+      if (error) {
+        console.error('Error adding reaction:', error);
+        return;
+      }
+    }
+
+    await fetchPosts();
   };
+
+  const handleAddComment = async (postId: string, comment: Comment) => {
+    const { error } = await supabase.from('comments').insert({
+      id: comment.id,
+      post_id: postId,
+      user_id: comment.userId,
+      caption: comment.caption,
+      song_title: comment.song?.songTitle ?? null,
+      artist: comment.song?.artist ?? null,
+      album_art: comment.song?.albumArt ?? null,
+      spotify_url: comment.song?.spotifyUrl ?? null,
+      timestamp: comment.timestamp,
+    });
+
+    if (error) {
+      console.error('Error adding comment:', error);
+      return;
+    }
+
+    await fetchPosts();
+  };
+
+  const today = new Date();
+  const formattedDate = today.toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
 
   return (
     <div className="min-h-screen bg-white">
@@ -104,17 +471,20 @@ export function FeedPage() {
         {/* Today's Emoji Set */}
         <div className="px-4 pb-3">
           <p className="text-xs text-gray-600 mb-2 font-bold">TODAY'S EMOTIONAL PALETTE:</p>
+
           <div className="flex gap-2">
-            {todayEmojiSet.emojis.map((emoji, i) => (
-              <div
-                key={i}
+          {emojiSet.map((emoji, index) => (
+            <div
+              key={index}
                 className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-400 border-2 border-black flex items-center justify-center text-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-              >
-                {emoji}
-              </div>
-            ))}
-          </div>
+            >
+              {emoji}
+            </div>
+          ))}
         </div>
+        </div>
+
+
       </div>
 
       {/* New Post Modal */}
@@ -191,55 +561,17 @@ export function FeedPage() {
             )}
             <div className="flex gap-2">
               <button
-                onClick={() => {
-                  // cancel
-                  setShowNewPost(false);
-                  setSearchQuery('');
-                  setSearchResults([]);
-                  setSelectedTrack(null);
-                  setNewPostCaption('');
-                  sessionStorage.removeItem('pending_spotify_url');
-                }}
+                onClick={handleCloseModal}
                 className="flex-1 bg-gray-200 border-2 border-black px-4 py-2 font-bold hover:bg-gray-300 transition-colors"
               >
                 CANCEL
               </button>
               <button
-                onClick={() => {
-                  // create post locally
-                  const pendingUrl = sessionStorage.getItem('pending_spotify_url');
-                  const spotifyUrl = pendingUrl || '';
-                  const albumArt = selectedTrack?.album?.images?.[0]?.url || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4';
-                  const songTitle = selectedTrack?.name || 'Unknown Title';
-                  const artist = selectedTrack ? selectedTrack.artists.map((a:any)=>a.name).join(', ') : 'Unknown Artist';
-
-                  const newPost: SongPost = {
-                    id: `post-${Date.now()}`,
-                    userId: currentUser.id,
-                    user: currentUser,
-                    spotifyUrl,
-                    albumArt,
-                    songTitle,
-                    artist,
-                    caption: newPostCaption,
-                    date: '2026-02-12',
-                    reactions: [],
-                    comments: [],
-                  };
-
-                  setPosts([newPost, ...posts]);
-
-                  // reset
-                  setShowNewPost(false);
-                  setSearchQuery('');
-                  setSearchResults([]);
-                  setSelectedTrack(null);
-                  setNewPostCaption('');
-                  sessionStorage.removeItem('pending_spotify_url');
-                }}
-                className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-4 py-2 font-bold hover:translate-x-0.5 hover:translate-y-0.5 transition-transform"
+                onClick={handleCreatePost}
+                disabled={isPosting || !selectedTrack || !caption.trim()}
+                className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-4 py-2 font-bold hover:translate-x-0.5 hover:translate-y-0.5 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                POST
+                {isPosting ? 'POSTING...' : 'POST'}
               </button>
             </div>
           </div>
@@ -252,7 +584,7 @@ export function FeedPage() {
           <SongPostComponent
             key={post.id}
             post={post}
-            emojiSet={todayEmojiSet.emojis}
+            emojiSet={emojiSet}//{todayEmojiSet.emojis}
             onReaction={handleReaction}
             onAddComment={handleAddComment}
           />

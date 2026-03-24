@@ -6,8 +6,11 @@ import { MusicMapPage } from "./components/MusicMapPage";
 import { PlaylistsPage } from "./components/PlaylistsPage";
 import { LoginPage } from "./components/LoginPage";
 import { CreateAccountPage } from "./components/CreateAccountPage";
+import { CallbackPage } from "./components/CallbackPage";
 
 export const router = createBrowserRouter([
+  { path: "/login",    Component: LoginPage },
+  { path: "/callback", Component: CallbackPage },
   {
     path: "/",
     Component: Root,
