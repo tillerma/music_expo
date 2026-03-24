@@ -150,7 +150,7 @@ export function ProfilePage() {
         
         <p className="text-black mb-4">{currentUser.bio}</p>
         
-        <div className="flex gap-6 text-sm">
+        {/* <div className="flex gap-6 text-sm">
           <div>
             <span className="font-bold">{currentUser.followers}</span>
             <span className="text-gray-700 ml-1">FOLLOWERS</span>
@@ -159,7 +159,7 @@ export function ProfilePage() {
             <span className="font-bold">{currentUser.following}</span>
             <span className="text-gray-700 ml-1">FOLLOWING</span>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* Calendar View */}
