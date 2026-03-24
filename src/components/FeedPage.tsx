@@ -4,7 +4,7 @@ import { isLoggedIn, logout } from '../utils/spotifyAuth';
 import { currentUser } from '../auth/currentUserInfo';
 // import { currentUser } from '../data/mockData';
 import { SongPost, Comment } from '../types';
-import { ChevronDown, ChevronUp, MessageCircle, ExternalLink, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, MessageCircle, ExternalLink, Trash2, Flag } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { searchTracks } from '../api/spotify';
 import { getTrackTopTags, LastFmTag } from '../api/lastfm';
@@ -597,6 +597,7 @@ function SongPostComponent({ post, onReaction, onAddComment, onDeleteComment }: 
   const [showComments, setShowComments] = useState(false);
   const [showAddComment, setShowAddComment] = useState(false);
   const [hoveredEmoji, setHoveredEmoji] = useState<string | null>(null);
+  const [showReport, setShowReport] = useState(false);
 
   const userReaction = post.reactions.find(r => r.userId === currentUser.id);
 
@@ -722,6 +723,21 @@ function SongPostComponent({ post, onReaction, onAddComment, onDeleteComment }: 
         </div>
       )}
 
+      {/* Report button */}
+      <div className="flex justify-end mb-2">
+        <button
+          onClick={() => setShowReport(true)}
+          className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition-colors"
+        >
+          <Flag className="w-3 h-3" />
+          <span>REPORT</span>
+        </button>
+      </div>
+
+      {showReport && (
+        <ReportModal type="post" targetId={post.id} onClose={() => setShowReport(false)} />
+      )}
+
       {/* Comments Section */}
       <div className="border-t-2 border-gray-300 pt-3">
         <button
@@ -776,6 +792,7 @@ interface CommentComponentProps {
 }
 
 function CommentComponent({ comment, onDelete }: CommentComponentProps) {
+  const [showReport, setShowReport] = useState(false);
   return (
     <div className="flex gap-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
       {/* Avatar */}
@@ -824,16 +841,70 @@ function CommentComponent({ comment, onDelete }: CommentComponentProps) {
         {comment.caption && <p className="text-sm text-black">{comment.caption}</p>}
       </div>
 
-      {/* Delete (own comments only) */}
-      {onDelete && (
+      {/* Actions: delete (own) + report */}
+      <div className="flex flex-col gap-1 flex-shrink-0 self-start">
+        {onDelete && (
+          <button
+            onClick={onDelete}
+            className="w-8 h-8 border-2 border-black bg-white hover:bg-red-50 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center"
+            title="Delete comment"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-black" />
+          </button>
+        )}
         <button
-          onClick={onDelete}
-          className="w-8 h-8 flex-shrink-0 self-start border-2 border-black bg-white hover:bg-red-50 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center"
-          title="Delete comment"
+          onClick={() => setShowReport(true)}
+          className="w-8 h-8 border-2 border-black bg-white hover:bg-red-50 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center"
+          title="Report comment"
         >
-          <Trash2 className="w-3.5 h-3.5 text-black" />
+          <Flag className="w-3.5 h-3.5 text-gray-400" />
         </button>
+      </div>
+
+      {showReport && (
+        <ReportModal type="comment" targetId={comment.id} onClose={() => setShowReport(false)} />
       )}
+    </div>
+  );
+}
+
+function ReportModal({ type, targetId, onClose }: { type: 'post' | 'comment'; targetId: string; onClose: () => void }) {
+  const [message, setMessage] = useState('');
+
+  const handleSubmit = () => {
+    if (!message.trim()) return;
+    const to = 'tillerma@umich.edu,ishanid@umich.edu,eshanair@umich.edu';
+    const subject = 'LYRA REPORTED POST';
+    const body = `Reported by: @${currentUser.username}\nType: ${type}\nID: ${targetId}\n\nReason:\n${message.trim()}`;
+    window.location.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white border-4 border-black p-6 w-full max-w-md shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-xl font-bold mb-1">REPORT {type.toUpperCase()}</h2>
+        <p className="text-sm text-gray-600 mb-4">Describe why you're reporting this {type}.</p>
+        <textarea
+          placeholder="Describe the issue... (max 500 characters)"
+          maxLength={500}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          className="w-full bg-yellow-100 border-2 border-black px-4 py-2 mb-4 resize-none h-32 focus:outline-none focus:border-red-500"
+        />
+        <div className="flex gap-2">
+          <button onClick={onClose} className="flex-1 bg-gray-200 border-2 border-black px-4 py-2 font-bold hover:bg-gray-300 transition-colors">
+            CANCEL
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!message.trim()}
+            className="flex-1 bg-red-500 text-white border-2 border-black px-4 py-2 font-bold hover:translate-x-0.5 hover:translate-y-0.5 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            SUBMIT REPORT
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

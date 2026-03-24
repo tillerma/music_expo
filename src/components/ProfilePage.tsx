@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { currentUser } from '../auth/currentUserInfo';
 import { /*currentUser, */generateCalendarPosts, initialFollowRequests } from '../data/mockData';
 import { SongPost, FollowRequest } from '../types';
-import { ChevronLeft, ChevronRight, Bell, X, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Bell, X, Check, Pencil } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useParams } from 'react-router-dom';
 
@@ -16,6 +16,11 @@ export function ProfilePage() {
   const [loadingPosts, setLoadingPosts] = useState(false);
   const { username } = useParams();
   const [profileUser, setProfileUser] = useState(null);
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [editBio, setEditBio] = useState('');
+  const [editAvatarUrl, setEditAvatarUrl] = useState('');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const isOwnProfile = username === currentUser.username;
 
   console.log(username);
 
@@ -147,6 +152,27 @@ export function ProfilePage() {
     }
   };
 
+  const handleSaveProfile = async () => {
+    if (!profileUser) return;
+    setIsSavingProfile(true);
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ bio: editBio, avatar_url: editAvatarUrl })
+      .eq('id', profileUser.id)
+      .select()
+      .single();
+    if (!error && data) {
+      setProfileUser(data);
+      const cached = localStorage.getItem('app_current_user');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        localStorage.setItem('app_current_user', JSON.stringify({ ...parsed, bio: editBio, avatar_url: editAvatarUrl }));
+      }
+    }
+    setIsSavingProfile(false);
+    setShowEditProfile(false);
+  };
+
   const monthName = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
   const calendarDays = generateCalendarDays();
   const pendingRequests = followRequests.filter(r => r.status === 'pending');
@@ -167,8 +193,21 @@ export function ProfilePage() {
             <h1 className="text-xl font-bold">{profileUser?.display_name}</h1>
             <p className="text-gray-700 font-medium">@{profileUser?.username}</p>
           </div>
+          {isOwnProfile && (
+            <button
+              onClick={() => {
+                setEditBio(profileUser?.bio ?? '');
+                setEditAvatarUrl(profileUser?.avatar_url ?? '');
+                setShowEditProfile(true);
+              }}
+              className="flex items-center gap-1 px-3 py-1 border-2 border-black bg-white font-bold text-sm hover:bg-gray-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              EDIT
+            </button>
+          )}
         </div>
-        
+
         <p className="text-black mb-4">{profileUser?.bio}</p>
         
         {/* <div className="flex gap-6 text-sm">
@@ -329,6 +368,49 @@ export function ProfilePage() {
           </span>
         )}
       </button>
+
+      {/* Edit Profile Modal */}
+      {showEditProfile && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowEditProfile(false)}>
+          <div className="bg-white border-4 border-black p-6 w-full max-w-md shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-bold mb-4">EDIT PROFILE</h2>
+
+            <label className="block text-sm font-bold mb-1">Profile Photo URL</label>
+            <input
+              type="text"
+              value={editAvatarUrl}
+              onChange={(e) => setEditAvatarUrl(e.target.value)}
+              placeholder="https://..."
+              className="w-full bg-yellow-100 border-2 border-black px-4 py-2 mb-3 focus:outline-none focus:border-purple-500"
+            />
+            {editAvatarUrl && (
+              <img src={editAvatarUrl} alt="preview" className="w-20 h-20 border-2 border-black object-cover mb-4" />
+            )}
+
+            <label className="block text-sm font-bold mb-1">Bio</label>
+            <textarea
+              value={editBio}
+              onChange={(e) => setEditBio(e.target.value)}
+              maxLength={200}
+              placeholder="Tell people about yourself..."
+              className="w-full bg-yellow-100 border-2 border-black px-4 py-2 mb-4 resize-none h-24 focus:outline-none focus:border-purple-500"
+            />
+
+            <div className="flex gap-2">
+              <button onClick={() => setShowEditProfile(false)} className="flex-1 bg-gray-200 border-2 border-black px-4 py-2 font-bold hover:bg-gray-300 transition-colors">
+                CANCEL
+              </button>
+              <button
+                onClick={handleSaveProfile}
+                disabled={isSavingProfile}
+                className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-4 py-2 font-bold hover:translate-x-0.5 hover:translate-y-0.5 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSavingProfile ? 'SAVING...' : 'SAVE'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showNotifications && (
         <div className="fixed top-16 right-4 z-50 bg-white border-4 border-black p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-w-sm">
