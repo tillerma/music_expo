@@ -67,53 +67,37 @@ export function FeedPage() {
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function fetchPosts() {
-      const { data, error } = await supabase
-      .from('posts')
-      .select(`
-        *,
-        profiles!posts_user_id_fkey (
-          id,
-          username,
-          display_name,
-          bio,
-          avatar_url,
-          followers,
-          following
-        ),
-        songs!posts_song_id_fkey (
-          id,
-          spotify_url,
-          song_title,
-          artist,
-          album_art,
-          danceability,
-          energy,
-          valence,
-          acousticness,
-          instrumentalness,
-          liveness,
-          speechiness,
-          tempo,
-          loudness
-        ),
-        reactions (
-          id,
-          emoji,
-          user_id,
-          user_name
-        ),
-        comments (
-          id,
-          user_id,
-          caption,
-          song_title,
-          artist,
-          album_art,
-          spotify_url,
-          timestamp
-        )
-      `)
-      .order('created_at', { ascending: false });
+    const { data, error } = await supabase
+    .from('posts')
+    .select(`
+      *,
+      profiles!posts_user_id_fkey (
+        id,
+        username,
+        display_name,
+        bio,
+        avatar_url,
+        followers,
+        following
+      ),
+      reactions (
+        id,
+        emoji,
+        user_id,
+        user_name
+      ),
+      comments (
+        id,
+        user_id,
+        caption,
+        song_title,
+        artist,
+        album_art,
+        spotify_url,
+        timestamp
+      )
+    `)
+    .order('created_at', { ascending: false });
 
       console.log('SUPABASE DATA:', data);
 
@@ -134,10 +118,10 @@ export function FeedPage() {
           followers: post.profiles?.followers ?? 0,
           following: post.profiles?.following ?? 0,
         },
-        spotifyUrl: post.songs?.spotify_url ?? post.spotify_url ?? '',
-        albumArt: post.songs?.album_art ?? post.album_art ?? 'https://placehold.co/200x200',
-        songTitle: post.songs?.song_title ?? post.song_title ?? 'Unknown Song',
-        artist: post.songs?.artist ?? post.artist ?? 'Unknown Artist',
+        spotifyUrl: post.spotify_url ?? '',
+        albumArt: post.album_art ?? 'https://placehold.co/200x200',
+        songTitle: post.song_title ?? 'Unknown Song',
+        artist: post.artist ?? 'Unknown Artist',
         caption: post.caption ?? '',
         date: post.post_date ?? '',
         reactions: (post.reactions || []).map((reaction: any) => ({
