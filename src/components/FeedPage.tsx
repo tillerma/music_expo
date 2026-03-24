@@ -6,7 +6,8 @@ import { currentUser } from '../auth/currentUserInfo';
 import { SongPost, Comment } from '../types';
 import { ChevronDown, ChevronUp, MessageCircle, ExternalLink, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { searchTracks, getAudioFeatures } from '../api/spotify';
+import { searchTracks } from '../api/spotify';
+import { getTrackTopTags, LastFmTag } from '../api/lastfm';
 
 export const HARDCODED_EMOJIS = ['🔥', '🪩', '💔', '✨', '🌙'];
 
@@ -33,6 +34,8 @@ export function FeedPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [selectedTrack, setSelectedTrack] = useState<any | null>(null);
+  const [pendingTags, setPendingTags] = useState<LastFmTag[]>([]);
+  const [featuresStatus, setFeaturesStatus] = useState<'idle' | 'loading' | 'ok' | 'failed'>('idle');
 
   useEffect(() => {
 
@@ -85,15 +88,7 @@ export function FeedPage() {
           song_title,
           artist,
           album_art,
-          danceability,
-          energy,
-          valence,
-          acousticness,
-          instrumentalness,
-          liveness,
-          speechiness,
-          tempo,
-          loudness
+          tags
         ),
         reactions (
           id,
@@ -182,35 +177,19 @@ export function FeedPage() {
     songTitle,
     artist,
     albumArt,
-    danceability,
-    energy,
-    valence,
-    acousticness,
-    instrumentalness,
-    liveness,
-    speechiness,
-    tempo,
-    loudness,
+    tags,
   }: {
     spotifyUrl: string;
     songTitle: string;
     artist: string;
     albumArt: string;
-    danceability?: number | null;
-    energy?: number | null;
-    valence?: number | null;
-    acousticness?: number | null;
-    instrumentalness?: number | null;
-    liveness?: number | null;
-    speechiness?: number | null;
-    tempo?: number | null;
-    loudness?: number | null;
+    tags?: LastFmTag[];
   }) {
     const trimmedUrl = spotifyUrl.trim();
 
     const { data: existingSong, error: existingSongError } = await supabase
       .from('songs')
-      .select('id')
+      .select('id, tags')
       .eq('spotify_url', trimmedUrl)
       .maybeSingle();
 
@@ -220,11 +199,17 @@ export function FeedPage() {
     }
 
     if (existingSong?.id) {
+      // Backfill tags if the song exists but has none
+      if (!existingSong.tags && tags && tags.length > 0) {
+        console.log('[Last.fm] Backfilling tags for existing song:', existingSong.id, tags);
+        await supabase.from('songs').update({ tags }).eq('id', existingSong.id);
+      }
       return existingSong.id;
     }
 
     const newSongId = crypto.randomUUID();
 
+    console.log('[Last.fm] Inserting new song with tags:', newSongId, tags);
     const { error: insertSongError } = await supabase
       .from('songs')
       .insert({
@@ -233,15 +218,7 @@ export function FeedPage() {
         song_title: songTitle,
         artist: artist,
         album_art: albumArt,
-        danceability: danceability ?? null,
-        energy: energy ?? null,
-        valence: valence ?? null,
-        acousticness: acousticness ?? null,
-        instrumentalness: instrumentalness ?? null,
-        liveness: liveness ?? null,
-        speechiness: speechiness ?? null,
-        tempo: tempo ?? null,
-        loudness: loudness ?? null,
+        tags: tags && tags.length > 0 ? tags : null,
       });
 
     if (insertSongError) {
@@ -278,8 +255,21 @@ export function FeedPage() {
 
   function handleSelectTrack(track: TrackResult) {
     setSelectedTrack(track);
-    setSearchQuery(track.name);
+    setSearchQuery(`${track.name} — ${track.artists[0]?.name ?? ''}`);
     setSearchResults([]);
+    // Fetch audio features immediately in the background
+    setFeaturesStatus('loading');
+    setPendingTags([]);
+    const artist = track.artists[0]?.name ?? '';
+    console.log('[Last.fm] Fetching tags for:', artist, '—', track.name);
+    getTrackTopTags(artist, track.name).then(tags => {
+      console.log('[Last.fm] Tags received:', tags);
+      setPendingTags(tags);
+      setFeaturesStatus(tags.length > 0 ? 'ok' : 'failed');
+    }).catch((err: unknown) => {
+      console.warn('[Last.fm] Failed to fetch tags:', err);
+      setFeaturesStatus('failed');
+    });
   }
 
   function handleCloseModal() {
@@ -287,6 +277,8 @@ export function FeedPage() {
     setSearchQuery('');
     setSearchResults([]);
     setSelectedTrack(null);
+    setPendingTags([]);
+    setFeaturesStatus('idle');
     setCaption('');
   }
 
@@ -298,44 +290,15 @@ export function FeedPage() {
 
       const spotifyUrl = selectedTrack.external_urls.spotify;
       const songTitle = selectedTrack.name;
-      const artist = selectedTrack.artists.map((a) => a.name).join(', ');
+      const artist = selectedTrack.artists.map((a: { name: string }) => a.name).join(', ');
       const albumArt = selectedTrack.album.images[0]?.url ?? 'https://placehold.co/200x200';
-
-      let audioFeatures = {
-        danceability: null as number | null,
-        energy: null as number | null,
-        valence: null as number | null,
-        acousticness: null as number | null,
-        instrumentalness: null as number | null,
-        liveness: null as number | null,
-        speechiness: null as number | null,
-        tempo: null as number | null,
-        loudness: null as number | null,
-      };
-
-      try {
-        const features = await getAudioFeatures(selectedTrack.id);
-        audioFeatures = {
-          danceability: features.danceability,
-          energy: features.energy,
-          valence: features.valence,
-          acousticness: features.acousticness,
-          instrumentalness: features.instrumentalness,
-          liveness: features.liveness,
-          speechiness: features.speechiness,
-          tempo: features.tempo,
-          loudness: features.loudness,
-        };
-      } catch (err) {
-        console.warn('Could not fetch audio features:', err);
-      }
 
       const songId = await getOrCreateSong({
         spotifyUrl,
         songTitle,
         artist,
         albumArt,
-        ...audioFeatures,
+        tags: pendingTags,
       });
 
       const newPost = {
@@ -490,7 +453,7 @@ export function FeedPage() {
             <div className="mb-3">
               <input
                 type="search"
-                placeholder="Search Spotify for a song"
+                placeholder="Search for a song"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-yellow-100 border-2 border-black px-4 py-2 focus:outline-none focus:border-purple-500"
@@ -505,17 +468,7 @@ export function FeedPage() {
                     <li
                       key={t.id}
                       className="flex items-center gap-3 p-2 hover:bg-gray-100 cursor-pointer"
-                      onClick={() => {
-                        // set the spotify url into the textarea below (the POST will use it)
-                        // store as a hidden input via sessionStorage so POST can access it if needed
-                        const spotifyUrl = `https://open.spotify.com/track/${t.id}`;
-                        sessionStorage.setItem('pending_spotify_url', spotifyUrl);
-                        // set selected track for preview
-                        setSelectedTrack(t);
-                        // also close results and update query to the selected track title
-                        setSearchResults([]);
-                        setSearchQuery(`${t.name} — ${t.artists[0].name}`);
-                      }}
+                      onClick={() => handleSelectTrack(t)}
                     >
                       <img src={t.album.images?.[0]?.url} alt={t.name} className="w-12 h-12 object-cover border-2 border-black" />
                       <div className="flex-1 min-w-0">
@@ -542,6 +495,11 @@ export function FeedPage() {
                 <div className="flex-1 min-w-0">
                   <p className="font-bold truncate">{selectedTrack.name}</p>
                   <p className="text-xs text-gray-600 truncate">{selectedTrack.artists.map((a:any)=>a.name).join(', ')}</p>
+                  <p className="text-xs mt-0.5">
+                    {featuresStatus === 'loading' && <span className="text-gray-400">fetching tags from Last.fm…</span>}
+                    {featuresStatus === 'ok'      && <span className="text-green-600 font-bold">✓ {pendingTags.length} tags ready</span>}
+                    {featuresStatus === 'failed'  && <span className="text-red-500">⚠ no tags found (map may not show this song)</span>}
+                  </p>
                 </div>
                 <a
                   href={`https://open.spotify.com/track/${selectedTrack.id}`}
@@ -981,7 +939,7 @@ function AddCommentForm({ postId, onAddComment, onCancel }: AddCommentFormProps)
             <>
               <input
                 type="search"
-                placeholder="Search Spotify for a song"
+                placeholder="Search for a song"
                 value={searchQueryC}
                 onChange={(e) => setSearchQueryC(e.target.value)}
                 className="w-full bg-white border-2 border-black px-3 py-2 focus:outline-none focus:border-purple-500 text-sm"
