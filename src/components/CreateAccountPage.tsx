@@ -42,13 +42,40 @@ export function CreateAccountPage() {
       return;
     }
 
+    // Define avatarUrl if user uploaded photo
+    const userId = crypto.randomUUID();
+    let avatarUrl = '';
+
+    if (avatarFile) {
+      const ext = avatarFile.name.split('.').pop() || 'png';
+      const filePath = `${userId}/avatar.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, avatarFile, {
+          upsert: true,
+          contentType: avatarFile.type,
+        });
+
+      if (uploadError) {
+        setError(uploadError.message);
+        return;
+      }
+
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      avatarUrl = data.publicUrl;
+    }
+
     const newUser = {
-      id: crypto.randomUUID(),
+      id: userId,
       username: trimmedUsername,
       password,
       display_name: displayName.trim() || trimmedUsername,
       bio: bio.trim(),
-      avatar_url: '',
+      avatar_url: avatarUrl,
       followers: 0,
       following: 0,
     };
