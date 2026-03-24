@@ -94,6 +94,7 @@ export function CreateAccountPage() {
 
     setAppCurrentUserId(data.id);
     localStorage.setItem('app_current_user', JSON.stringify(data));
+    localStorage.setItem('lyra_show_welcome', 'true');
     navigate('/');
   };
 

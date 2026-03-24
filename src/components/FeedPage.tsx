@@ -62,6 +62,7 @@ export function FeedPage() {
 
     return () => clearTimeout(handler);
   }, [searchQuery]);
+  const [showWelcome, setShowWelcome] = useState(() => localStorage.getItem('lyra_show_welcome') === 'true');
   const [caption, setCaption] = useState('');
   const [isPosting, setIsPosting] = useState(false);
 
@@ -552,6 +553,112 @@ export function FeedPage() {
           <p className="text-sm mt-2">Be the first to share!</p>
         </div>
       )}
+
+      {/* Welcome modal for new users */}
+      {showWelcome && (
+        <WelcomeModal onClose={() => {
+          localStorage.removeItem('lyra_show_welcome');
+          setShowWelcome(false);
+        }} />
+      )}
+
+      {/* Floating contact button */}
+      <a
+        href="mailto:tillerma@umich.edu,ishanid@umich.edu,eshanair@umich.edu?subject=LYRA%20Support"
+        style={{ position: 'fixed', bottom: '80px', right: '16px', zIndex: 9999 }}
+        className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-3 py-2 text-xs font-bold shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-0.5 hover:translate-y-0.5 transition-transform"
+      >
+        ? CONTACT
+      </a>
+    </div>
+  );
+}
+
+function WelcomeModal({ onClose }: { onClose: () => void }) {
+  const CONTACT_HREF = 'mailto:tillerma@umich.edu,ishanid@umich.edu,eshanair@umich.edu?subject=LYRA%20Support';
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6">
+      <div className="bg-white border-4 border-black w-full max-w-2xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-h-[90vh] overflow-y-auto">
+
+        {/* Header */}
+        <div className="bg-gradient-to-r from-purple-500 to-pink-500 px-8 py-6 border-b-4 border-black">
+          <h2 className="text-3xl font-bold text-white tracking-tight">WELCOME TO LYRA</h2>
+          <p className="text-white/80 text-base mt-1">Here's everything you need to know to get started.</p>
+        </div>
+
+        <div className="px-8 py-6 space-y-0 divide-y-2 divide-gray-200">
+
+          {/* What is LYRA */}
+          <div className="py-5">
+            <h3 className="font-bold text-lg mb-2">🎵 What is LYRA?</h3>
+            <p className="text-gray-700 leading-relaxed">LYRA is a social music diary. Every day you share one song that's on your mind — and discover what the people around you are listening to.</p>
+          </div>
+
+          {/* Pages */}
+          <div className="py-5">
+            <h3 className="font-bold text-lg mb-3">🗺 Pages you can access</h3>
+            <ul className="space-y-3">
+              <li className="flex gap-3">
+                <span className="font-bold text-black min-w-[90px]">Feed</span>
+                <span className="text-gray-700">Today's posts from everyone. React with the daily emoji palette or leave a comment on any post.</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-bold text-black min-w-[90px]">Music Map</span>
+                <span className="text-gray-700">Daily songs plotted by mood and energy. Explore what genres and vibes are trending today.</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-bold text-black min-w-[90px]">Playlists</span>
+                <span className="text-gray-700">Curated playlists built from the community's posts and reactions.</span>
+              </li>
+              <li className="flex gap-3">
+                <span className="font-bold text-black min-w-[90px]">Profile</span>
+                <span className="text-gray-700">Your listening calendar — every song you've ever posted, organized by date.</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Posting */}
+          <div className="py-5">
+            <h3 className="font-bold text-lg mb-2">📅 Posting once a day</h3>
+            <p className="text-gray-700 leading-relaxed">You get <span className="font-bold text-black">one post per day</span>. Hit <span className="font-bold text-black">+ POST</span> in the top right, search Spotify for a song, write a caption (up to 140 characters), and submit. Once you've posted the button shows <span className="font-bold text-black">✓ POSTED TODAY</span> — come back tomorrow for your next one.</p>
+          </div>
+
+          {/* Comments */}
+          <div className="py-5">
+            <h3 className="font-bold text-lg mb-2">💬 Types of comments</h3>
+            <p className="text-gray-700 leading-relaxed mb-2">Tap the comments toggle on any post, then hit <span className="font-bold text-black">+ ADD COMMENT</span>. You can leave:</p>
+            <ul className="space-y-1.5 text-gray-700 ml-4">
+              <li>• A <span className="font-bold text-black">text reply</span> — share a thought about the song</li>
+              <li>• A <span className="font-bold text-black">song reply</span> — attach a track from Spotify to your comment</li>
+              <li>• Or <span className="font-bold text-black">both</span> — text and a song together</li>
+            </ul>
+          </div>
+
+          {/* Contact */}
+          <div className="py-5">
+            <h3 className="font-bold text-lg mb-2">🛠 Running into problems?</h3>
+            <p className="text-gray-700 leading-relaxed mb-3">Use the <span className="font-bold text-black">? CONTACT</span> button fixed to the bottom-right corner of the page at any time to email the LYRA team directly.</p>
+            <a
+              href={CONTACT_HREF}
+              className="inline-block bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-4 py-2 text-sm font-bold shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-0.5 hover:translate-y-0.5 transition-transform"
+            >
+              ? CONTACT DEVELOPERS
+            </a>
+          </div>
+
+        </div>
+
+        <div className="px-8 pb-8 pt-2">
+          <button
+            onClick={onClose}
+            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-4 py-4 font-bold text-lg hover:translate-x-0.5 hover:translate-y-0.5 transition-transform shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+          >
+            LET'S GO →
+          </button>
+        </div>
+
+      </div>
     </div>
   );
 }
