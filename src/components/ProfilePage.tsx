@@ -164,7 +164,7 @@ export function ProfilePage() {
             className="w-20 h-20 border-4 border-black object-cover shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
           />
           <div className="flex-1">
-            <h1 className="text-xl font-bold">{profileUser?.displayName}</h1>
+            <h1 className="text-xl font-bold">{profileUser?.display_name}</h1>
             <p className="text-gray-700 font-medium">@{profileUser?.username}</p>
           </div>
         </div>
