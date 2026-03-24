@@ -413,6 +413,8 @@ export function FeedPage() {
   };
 
   const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+  const hasPostedToday = posts.some(p => p.userId === currentUser.id && p.date === todayStr);
   const formattedDate = today.toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
@@ -434,10 +436,11 @@ export function FeedPage() {
             </div>
           </div>
           <button
-            onClick={() => setShowNewPost(true)}
-            className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 border-2 border-black font-bold hover:translate-x-0.5 hover:translate-y-0.5 transition-transform shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+            onClick={() => !hasPostedToday && setShowNewPost(true)}
+            disabled={hasPostedToday}
+            className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 border-2 border-black font-bold hover:translate-x-0.5 hover:translate-y-0.5 transition-transform shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-x-0 disabled:translate-y-0"
           >
-            + POST
+            {hasPostedToday ? '✓ POSTED TODAY' : '+ POST'}
           </button>
         </div>
         
