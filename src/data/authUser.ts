@@ -1,42 +1,46 @@
 import type { User } from '../types';
 import { allUsers } from './allUsers';
 
-
+/**
+ * Returns the currently logged-in user's profile.
+ *
+ * Priority:
+ *  1. Supabase profile cached in localStorage at login (app_current_user)
+ *  2. ID stored from the old mock-data flow (app_current_user_id → allUsers lookup)
+ *  3. Fallback to the first mock user so the app never crashes
+ */
 export function getAppCurrentUser(): User {
   try {
-    const stored = window.localStorage.getItem('app_current_user_id');
-    if (stored) {
-      const found = allUsers.find(u => u.id === stored || u.username === stored);
-      if (found) return found;
-    }
-
-    const pending = sessionStorage.getItem('pending_spotify_profile');
-    if (pending) {
-      const sp = JSON.parse(pending) as any;
+    const cached = window.localStorage.getItem('app_current_user');
+    if (cached) {
+      const data = JSON.parse(cached);
       return {
-        id: sp.id,
-        username: sp.id,
-        displayName: sp.display_name || sp.id,
-        bio: '',
-        avatarUrl: sp.images && sp.images[0] ? sp.images[0].url : '',
-        followers: 0,
-        following: 0,
+        id: data.id,
+        username: data.username,
+        displayName: data.display_name || data.username,
+        bio: data.bio || '',
+        avatarUrl: data.avatar_url || '',
+        followers: data.followers ?? 0,
+        following: data.following ?? 0,
       } as User;
     }
 
-    // Fallback to the first user in allUsers
+    const storedId = window.localStorage.getItem('app_current_user_id');
+    if (storedId) {
+      const found = allUsers.find(u => u.id === storedId || u.username === storedId);
+      if (found) return found;
+    }
+
     return allUsers[0];
-  } catch (err) {
-    // In non-browser contexts, localStorage may be unavailable — fallback
+  } catch {
     return allUsers[0];
   }
 }
 
-
 export function setAppCurrentUserId(id: string) {
   try {
     window.localStorage.setItem('app_current_user_id', id);
-  } catch (err) {
-    // ignore
+  } catch {
+    // ignore in non-browser environments
   }
 }

@@ -1,79 +1,144 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router';
-import { allUsers } from '../data/allUsers';
+import { useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
+import { supabase } from '../lib/supabase';
 import { setAppCurrentUserId } from '../data/authUser';
-import type { SpotifyUser } from '../types';
 
 export function CreateAccountPage() {
   const navigate = useNavigate();
-  const [spotifyProfile, setSpotifyProfile] = useState<SpotifyUser | null>(null);
+  const [searchParams] = useSearchParams();
+  const noAccountMessage = searchParams.get('message') === 'no-account';
+
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [bio, setBio] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const raw = sessionStorage.getItem('pending_spotify_profile');
-    if (!raw) {
-      // Nothing pending — go back to feed
-      navigate('/');
+  const handleSubmit = async (e: { preventDefault(): void }) => {
+    e.preventDefault();
+    if (loading) return;
+    setLoading(true);
+    setError(null);
+
+    const trimmedUsername = username.trim();
+    if (!trimmedUsername || !password) {
+      setError('Username and password are required.');
+      setLoading(false);
       return;
     }
-    const profile = JSON.parse(raw) as SpotifyUser;
-    setSpotifyProfile(profile);
-    setDisplayName(profile.display_name || '');
-    if (profile.images && profile.images[0]) setAvatarUrl(profile.images[0].url);
-  }, [navigate]);
 
-  if (!spotifyProfile) return null;
+    // Check if username is already taken
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('username', trimmedUsername)
+      .maybeSingle();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const id = spotifyProfile.id;
-    const username = spotifyProfile.id; // set identical to spotify account
+    if (existing) {
+      setError('That username is already taken. Please choose another.');
+      setLoading(false);
+      return;
+    }
 
     const newUser = {
-      id,
-      username,
-      displayName: displayName || spotifyProfile.display_name || username,
-      bio: bio || '',
-      avatarUrl: avatarUrl || '',
+      id: crypto.randomUUID(),
+      username: trimmedUsername,
+      password,
+      display_name: displayName.trim() || trimmedUsername,
+      bio: bio.trim(),
+      avatar_url: '',
       followers: 0,
       following: 0,
     };
 
-  // Add to local DB
-  allUsers.push(newUser as any);
-  // Clear pending profile
-  sessionStorage.removeItem('pending_spotify_profile');
-  // Set as current app user
-  setAppCurrentUserId(id);
-  // Navigate to feed
-  navigate('/');
+    const { data, error: insertError } = await supabase
+      .from('profiles')
+      .insert(newUser)
+      .select()
+      .single();
+
+    if (insertError || !data) {
+      setError(insertError?.message ?? 'Failed to create account. Please try again.');
+      setLoading(false);
+      return;
+    }
+
+    setAppCurrentUserId(data.id);
+    localStorage.setItem('app_current_user', JSON.stringify(data));
+    navigate('/');
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      <form onSubmit={handleSubmit} className="bg-white border-4 border-black p-6 w-full max-w-md shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-        <h2 className="text-xl font-bold mb-4">Create your account</h2>
+    <div className="min-h-screen flex items-center justify-center p-6 bg-white">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white border-4 border-black p-6 w-full max-w-md shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
+      >
+        <h2 className="text-2xl font-bold mb-1">Create Account</h2>
 
-        <label className="block text-sm font-bold mb-1">User ID</label>
-        <input value={spotifyProfile.id} readOnly className="w-full mb-3 border-2 border-black px-3 py-2 bg-gray-100" />
+        {noAccountMessage && (
+          <p className="mb-4 text-sm text-purple-700 bg-purple-50 border-2 border-purple-300 px-3 py-2">
+            We couldn't find an account with those credentials. Create one below!
+          </p>
+        )}
 
-        <label className="block text-sm font-bold mb-1">Username</label>
-        <input value={spotifyProfile.id} readOnly className="w-full mb-3 border-2 border-black px-3 py-2 bg-gray-100" />
+        <label className="block text-sm font-bold mb-1 mt-3">Username *</label>
+        <input
+          value={username}
+          onChange={e => setUsername(e.target.value)}
+          required
+          className="w-full mb-3 border-2 border-black px-3 py-2 focus:outline-none focus:border-purple-500"
+          placeholder="e.g. musiclover42"
+        />
 
-        <label className="block text-sm font-bold mb-1">Display name</label>
-        <input value={displayName} onChange={e => setDisplayName(e.target.value)} className="w-full mb-3 border-2 border-black px-3 py-2" />
+        <label className="block text-sm font-bold mb-1">Password *</label>
+        <input
+          type="password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          required
+          className="w-full mb-3 border-2 border-black px-3 py-2 focus:outline-none focus:border-purple-500"
+          placeholder="Choose a password"
+        />
+
+        <label className="block text-sm font-bold mb-1">Display Name</label>
+        <input
+          value={displayName}
+          onChange={e => setDisplayName(e.target.value)}
+          className="w-full mb-3 border-2 border-black px-3 py-2 focus:outline-none focus:border-purple-500"
+          placeholder="How your name appears to others"
+        />
 
         <label className="block text-sm font-bold mb-1">Bio</label>
-        <textarea value={bio} onChange={e => setBio(e.target.value)} className="w-full mb-3 border-2 border-black px-3 py-2 h-24" />
+        <textarea
+          value={bio}
+          onChange={e => setBio(e.target.value)}
+          className="w-full mb-4 border-2 border-black px-3 py-2 h-24 resize-none focus:outline-none focus:border-purple-500"
+          placeholder="Tell people about yourself"
+        />
 
-        <label className="block text-sm font-bold mb-1">Avatar URL</label>
-        <input value={avatarUrl} onChange={e => setAvatarUrl(e.target.value)} className="w-full mb-4 border-2 border-black px-3 py-2" />
+        {error && (
+          <p className="mb-3 text-sm text-red-600 bg-red-50 border-2 border-red-300 px-3 py-2">
+            {error}
+          </p>
+        )}
 
         <div className="flex gap-2">
-          <button type="button" onClick={() => navigate('/')} className="flex-1 bg-gray-200 border-2 border-black px-4 py-2 font-bold">Cancel</button>
-          <button type="submit" className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-4 py-2 font-bold">Create</button>
+          <button
+            type="button"
+            onClick={() => navigate('/login')}
+            className="flex-1 bg-gray-200 border-2 border-black px-4 py-2 font-bold hover:bg-gray-300 transition-colors"
+          >
+            Back to Login
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-4 py-2 font-bold disabled:opacity-50 hover:translate-x-0.5 hover:translate-y-0.5 transition-transform shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+          >
+            {loading ? 'Creating…' : 'Create Account'}
+          </button>
         </div>
       </form>
     </div>
