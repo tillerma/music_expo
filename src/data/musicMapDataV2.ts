@@ -344,9 +344,11 @@ export function useMusicMapV2(
             algorithm = 'pca';
           }
 
-          // Normalize to [-5, 5] then push overlapping points apart
+          // Normalize to [-5, 5] then separate overlapping points.
+          // minDist = 1.2 ≈ one dot diameter at typical fit-all scale (~40px/unit).
+          // 30 iterations is enough to separate coincident points without distorting cluster shape.
           coords = normalizeCoords(coords);
-          coords = resolveCollisions(coords, 1.1);
+          coords = resolveCollisions(coords, 1.2, 30);
         }
 
         if (cancelled) return;

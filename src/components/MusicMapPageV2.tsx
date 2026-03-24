@@ -10,10 +10,10 @@ import { currentUser } from '../auth/currentUserInfo';
 import { X, ZoomIn, ZoomOut, Crosshair } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const ZOOM_MIN          = 0.3;
-const ZOOM_MAX          = 6;
-const ZOOM_BTN_FACTOR   = 1.25;
-const WHEEL_SENSITIVITY = 1200;
+const ZOOM_MIN          = 3;
+const ZOOM_MAX          = 300;
+const ZOOM_BTN_FACTOR   = 1.3;
+const WHEEL_SENSITIVITY = 800;
 const DOT_SIZE          = 36;
 const DRAG_THRESH       = 5;
 
@@ -158,8 +158,8 @@ export function MusicMapPageV2() {
   }, [allTags, xTag, yTag]);
 
   // ── Transform ──────────────────────────────────────────────────────────────
-  const transformRef = useRef<Transform>({ x: 0, y: 0, scale: 1 });
-  const [transform, setTransform] = useState<Transform>({ x: 0, y: 0, scale: 1 });
+  const transformRef = useRef<Transform>({ x: 0, y: 0, scale: 40 });
+  const [transform, setTransform] = useState<Transform>({ x: 0, y: 0, scale: 40 });
   const syncTransform = useCallback((t: Transform) => {
     transformRef.current = t;
     setTransform({ ...t });
@@ -191,12 +191,12 @@ export function MusicMapPageV2() {
     const yScores = points.map(p => score(p, yTag));
     const maxX = Math.max(...xScores, 1);
     const maxY = Math.max(...yScores, 1);
-    // sqrt scaling: compresses high scores, spreads low ones → more organic spacing
+
     const raw: [number, number][] = points.map((_, i) => [
       Math.sqrt(xScores[i] / maxX) * 10 - 5,
       Math.sqrt(yScores[i] / maxY) * 10 - 5,
     ]);
-    const resolved = resolveCollisions(raw, 1.1);
+    const resolved = resolveCollisions(raw, 1.2, 30);
     points.forEach((p, i) => result.set(p.id, { ax: resolved[i][0], ay: resolved[i][1] }));
     return result;
   }, [points, xTag, yTag]);
@@ -306,17 +306,17 @@ export function MusicMapPageV2() {
 
   // ── Fit all ────────────────────────────────────────────────────────────────
   const fitAllTransform = useCallback((padding = 0.14): Transform => {
-    if (points.length === 0) return { x: 0, y: 0, scale: 1 };
+    if (points.length === 0) return { x: 0, y: 0, scale: 40 };
     const xs = points.map(p => getCoords(p).x);
     const ys = points.map(p => getCoords(p).y);
     const minX = Math.min(...xs), maxX = Math.max(...xs);
     const minY = Math.min(...ys), maxY = Math.max(...ys);
     const dataW = maxX - minX || 1, dataH = maxY - minY || 1;
     const { w, h } = containerSize;
+    // scale = pixels per data unit; no arbitrary cap, just clamp to zoom limits
     const scale = clampZoom(Math.min(
       (w * (1 - 2 * padding)) / dataW,
       (h * (1 - 2 * padding)) / dataH,
-      1.4,
     ));
     return { scale, x: -((minX + maxX) / 2 * scale), y: (minY + maxY) / 2 * scale };
   }, [containerSize, points, getCoords]);
@@ -499,17 +499,16 @@ export function MusicMapPageV2() {
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
         >
-          {/* Grid */}
-          <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity: 0.15 }}>
+          {/* Grid — fixed 80px screen-space grid, shifts with pan */}
+          <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity: 0.12 }}>
             <defs>
               <pattern id="mapgrid2"
-                width={80 * transform.scale} height={80 * transform.scale}
+                width={80} height={80}
                 patternUnits="userSpaceOnUse"
-                x={(containerSize.w / 2 + transform.x) % (80 * transform.scale)}
-                y={(containerSize.h / 2 + transform.y) % (80 * transform.scale)}
+                x={(containerSize.w / 2 + transform.x) % 80}
+                y={(containerSize.h / 2 + transform.y) % 80}
               >
-                <path d={`M ${80 * transform.scale} 0 L 0 0 0 ${80 * transform.scale}`}
-                  fill="none" stroke="#a78bfa" strokeWidth="0.6" />
+                <path d="M 80 0 L 0 0 0 80" fill="none" stroke="#a78bfa" strokeWidth="0.5" />
               </pattern>
             </defs>
             <rect width="100%" height="100%" fill="url(#mapgrid2)" />
@@ -591,86 +590,76 @@ export function MusicMapPageV2() {
       {/* ── DETAIL MODAL ── */}
       {selectedPoint && (
         <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4"
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
           onClick={() => setSelectedPoint(null)}
         >
           <div
-            className="bg-white border-4 border-black w-full max-w-sm shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
+            className="bg-white border-4 border-black p-6 w-full max-w-md shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
             onClick={e => e.stopPropagation()}
           >
-            {/* User header */}
-            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b-4 border-black bg-gradient-to-r from-pink-100 to-purple-100">
-              <div className="flex items-center gap-3">
-                {selectedPoint.user.avatarUrl ? (
-                  <img src={selectedPoint.user.avatarUrl} alt={selectedPoint.user.username}
-                    className="w-12 h-12 rounded-full border-4 border-black object-cover shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]" />
-                ) : (
-                  <div className="w-12 h-12 rounded-full border-4 border-black bg-purple-200 flex items-center justify-center text-sm font-black">
-                    {selectedPoint.user.username.slice(0, 2).toUpperCase()}
-                  </div>
-                )}
-                <div>
-                  <p className="font-black text-base leading-tight">{selectedPoint.user.displayName}</p>
-                  <p className="text-sm text-gray-600 font-medium">@{selectedPoint.user.username}</p>
-                </div>
-              </div>
+            {/* Date + posted by */}
+            <div className="flex items-center justify-between mb-4">
+              <span className="font-bold text-black text-sm">
+                {new Date(selectedPoint.postedAt).toLocaleDateString('default', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()}
+              </span>
               <button
                 onClick={() => setSelectedPoint(null)}
-                className="w-8 h-8 flex items-center justify-center border-2 border-black bg-white hover:bg-gray-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                className="p-1 hover:bg-gray-100 transition-colors"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Song card */}
-            <div className="px-5 pt-4 pb-2">
-              <div className="flex items-center gap-0 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] overflow-hidden mb-4">
-                {selectedPoint.albumArt ? (
-                  <img src={selectedPoint.albumArt} alt={selectedPoint.songTitle}
-                    className="w-16 h-16 object-cover border-r-4 border-black flex-shrink-0" />
-                ) : (
-                  <div className="w-16 h-16 bg-gray-900 border-r-4 border-black flex-shrink-0 flex items-center justify-center">
-                    <span className="text-2xl">🎵</span>
-                  </div>
-                )}
-                <div className="flex-1 min-w-0 px-3 py-2 bg-gradient-to-r from-blue-50 to-purple-50">
-                  <p className="font-black text-sm truncate">{selectedPoint.songTitle}</p>
-                  <p className="text-xs text-gray-600 font-medium truncate">{selectedPoint.artist}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">
-                    {new Date(selectedPoint.postedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                  </p>
+            {/* Album art + song info */}
+            <div className="flex gap-4 mb-4">
+              {selectedPoint.albumArt ? (
+                <img
+                  src={selectedPoint.albumArt}
+                  alt={selectedPoint.songTitle}
+                  className="w-32 h-32 border-2 border-black object-cover shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex-shrink-0"
+                />
+              ) : (
+                <div className="w-32 h-32 border-2 border-black bg-gray-100 flex items-center justify-center flex-shrink-0 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                  <span className="text-3xl">🎵</span>
                 </div>
+              )}
+              <div className="flex flex-col justify-center min-w-0">
+                <p className="font-bold text-black mb-1 leading-snug">{selectedPoint.songTitle}</p>
+                <p className="text-sm text-gray-600 font-medium mb-2">{selectedPoint.artist}</p>
+                <button
+                  onClick={() => { navigate(`/profile/${selectedPoint.user.username}`); setSelectedPoint(null); }}
+                  className="text-sm font-bold text-purple-600 hover:text-purple-800 text-left"
+                >
+                  @{selectedPoint.user.username}
+                </button>
               </div>
-
-              {selectedPoint.caption && (
-                <p className="text-sm text-gray-700 italic leading-relaxed mb-4 px-1">"{selectedPoint.caption}"</p>
-              )}
-
-              {selectedPoint.tags.length > 0 && (
-                <div className="mb-4">
-                  <p className="text-[9px] font-black uppercase tracking-widest text-gray-400 mb-2">Tags</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedPoint.tags.map(tag => (
-                      <TagChip key={tag.name} tag={tag} active={activeTag === tag.name}
-                        onClick={() => {
-                          setActiveTag(prev => prev === tag.name ? null : tag.name);
-                          setSelectedPoint(null);
-                          if (viewMode !== 'cluster') setViewMode('cluster');
-                        }} />
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
 
-            <div className="px-5 pb-5">
-              <button
-                onClick={() => { navigate(`/profile/${selectedPoint.user.username}`); setSelectedPoint(null); }}
-                className="w-full bg-black text-white border-2 border-black py-3 font-black text-sm hover:bg-gray-800 transition-colors shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-x-0.5 hover:translate-y-0.5"
-              >
-                VIEW PROFILE →
-              </button>
-            </div>
+            {/* Caption */}
+            {selectedPoint.caption && (
+              <p className="text-black mb-4">{selectedPoint.caption}</p>
+            )}
+
+            {/* Tags */}
+            {selectedPoint.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-4">
+                {selectedPoint.tags.map(tag => (
+                  <TagChip key={tag.name} tag={tag} active={activeTag === tag.name}
+                    onClick={() => {
+                      setActiveTag(prev => prev === tag.name ? null : tag.name);
+                      setSelectedPoint(null);
+                      if (viewMode !== 'cluster') setViewMode('cluster');
+                    }} />
+                ))}
+              </div>
+            )}
+
+            <button
+              onClick={() => setSelectedPoint(null)}
+              className="w-full bg-gray-200 border-2 border-black px-4 py-2 font-bold hover:bg-gray-300 transition-colors"
+            >
+              CLOSE
+            </button>
           </div>
         </div>
       )}
