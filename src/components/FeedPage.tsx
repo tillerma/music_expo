@@ -207,7 +207,7 @@ export function FeedPage() {
     speechiness,
     tempo,
     loudness,
-  }: { // ******* TODO: FILL WITH SPOTIFY API INFO *******
+  }: {
     spotifyUrl: string;
     songTitle: string;
     artist: string;

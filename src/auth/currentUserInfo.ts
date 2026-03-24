@@ -1,14 +1,12 @@
-import { User } from '../types';
+import type { User } from '../types';
+import { getAppCurrentUser } from '../data/authUser';
 
-// ******* TODO: FILL username WITH SPOTIFY API INFO *******
-// ******* TODO: POPULATE OTHER FIELDS FROM SUPABASE QUERY USING username *******
-
-export const currentUser: User = {
-  id: 'user-1',
-  username: 'ishanid', // ONLY this field will be from spotify api
-  displayName: 'Ishani Das',
-  bio: 'hii',
-  avatarUrl: 'https://media.licdn.com/dms/image/v2/D4E03AQFYw95QGARgUQ/profile-displayphoto-shrink_200_200/B4EZZJPyMbG0AY-/0/1744985597494?e=2147483647&v=beta&t=NFMU-8Bjl-StR8gCeLQ9GQj7skGhsemq_VbQxAkOOi0',
-  followers: 0,
-  following: 0,
-};
+// Proxy so that every property access reflects whoever is currently logged in.
+// Reading currentUser.username (or any other field) always pulls fresh data
+// from localStorage, so the value stays correct across login/logout without
+// requiring a page reload or re-import of this module.
+export const currentUser = new Proxy({} as User, {
+  get(_target, prop: string) {
+    return getAppCurrentUser()[prop as keyof User];
+  },
+});
