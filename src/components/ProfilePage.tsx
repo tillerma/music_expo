@@ -4,6 +4,7 @@ import { /*currentUser, */generateCalendarPosts, initialFollowRequests } from '.
 import { SongPost, FollowRequest } from '../types';
 import { ChevronLeft, ChevronRight, Bell, X, Check } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useParams } from 'react-router-dom';
 
 export function ProfilePage() {
   const [selectedPost, setSelectedPost] = useState<SongPost | null>(null);
@@ -13,16 +14,34 @@ export function ProfilePage() {
   // const calendarPosts = generateCalendarPosts();
   const [calendarPosts, setCalendarPosts] = useState<SongPost[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
+  const { username } = useParams();
+  const [profileUser, setProfileUser] = useState(null);
+
+  console.log(username);
 
   const getPostForDate = (dateStr: string) => {
     return calendarPosts.find(p => p.date === dateStr);
   };
 
   useEffect(() => {
-    
-    async function fetchCalendarPosts() {
-      if (!currentUser?.id) return;
+    async function fetchData() {
+      if (!username) return;
 
+      // 🔹 Step 1: get the profile user
+      const { data: userData, error: userError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("username", username)
+        .single();
+
+      if (userError || !userData) {
+        console.error("Error fetching profile user:", userError);
+        return;
+      }
+
+      setProfileUser(userData);
+
+      // 🔹 Step 2: fetch posts for THAT user
       const startOfMonth = new Date(
         currentMonth.getFullYear(),
         currentMonth.getMonth(),
@@ -37,7 +56,7 @@ export function ProfilePage() {
       const startOfMonthStr = startOfMonth.toISOString().split("T")[0];
       const startOfNextMonthStr = startOfNextMonth.toISOString().split("T")[0];
 
-      const { data, error } = await supabase
+      const { data: postsData, error: postsError } = await supabase
         .from("posts")
         .select(`
           id,
@@ -50,17 +69,17 @@ export function ProfilePage() {
           album_art,
           spotify_url
         `)
-        .eq("user_id", currentUser.id)
+        .eq("user_id", userData.id) // 🔥 KEY CHANGE
         .gte("post_date", startOfMonthStr)
         .lt("post_date", startOfNextMonthStr)
         .order("post_date", { ascending: true });
 
-      if (error) {
-        console.error("Error fetching calendar posts:", error);
+      if (postsError) {
+        console.error("Error fetching posts:", postsError);
         return;
       }
 
-      const mappedPosts = (data ?? []).map((post) => ({
+      const mappedPosts = (postsData ?? []).map((post) => ({
         id: post.id,
         date: post.post_date,
         caption: post.caption ?? "",
@@ -73,8 +92,8 @@ export function ProfilePage() {
       setCalendarPosts(mappedPosts);
     }
 
-    fetchCalendarPosts();
-  }, [currentUser?.id, currentMonth]);
+    fetchData();
+  }, [username, currentMonth]);
 
   const generateCalendarDays = () => {
     const year = currentMonth.getFullYear();
@@ -132,31 +151,33 @@ export function ProfilePage() {
   const calendarDays = generateCalendarDays();
   const pendingRequests = followRequests.filter(r => r.status === 'pending');
 
+  if (!profileUser) return <div>Loading...</div>;
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
       <div className="px-4 py-6 border-b-4 border-black bg-gradient-to-r from-pink-200 to-blue-200">
         <div className="flex items-center gap-4 mb-4">
           <img
-            src={currentUser.avatarUrl}
-            alt={currentUser.username}
+            src={profileUser?.avatar_url}
+            alt={profileUser?.username}
             className="w-20 h-20 border-4 border-black object-cover shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
           />
           <div className="flex-1">
-            <h1 className="text-xl font-bold">{currentUser.displayName}</h1>
-            <p className="text-gray-700 font-medium">@{currentUser.username}</p>
+            <h1 className="text-xl font-bold">{profileUser?.displayName}</h1>
+            <p className="text-gray-700 font-medium">@{profileUser?.username}</p>
           </div>
         </div>
         
-        <p className="text-black mb-4">{currentUser.bio}</p>
+        <p className="text-black mb-4">{profileUser?.bio}</p>
         
         <div className="flex gap-6 text-sm">
           <div>
-            <span className="font-bold">{currentUser.followers}</span>
+            <span className="font-bold">{profileUser?.followers}</span>
             <span className="text-gray-700 ml-1">FOLLOWERS</span>
           </div>
           <div>
-            <span className="font-bold">{currentUser.following}</span>
+            <span className="font-bold">{profileUser?.following}</span>
             <span className="text-gray-700 ml-1">FOLLOWING</span>
           </div>
         </div>
@@ -326,7 +347,7 @@ export function ProfilePage() {
               <div key={i} className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <img
-                    src={request.fromUser.avatarUrl}
+                    src={request.fromUser.avatar_url}
                     alt={request.fromUser.username}
                     className="w-10 h-10 border-2 border-black object-cover shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
                   />
