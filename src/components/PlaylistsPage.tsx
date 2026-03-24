@@ -1,58 +1,167 @@
-import { useState } from 'react';
-import { playlists as initialPlaylists } from '../data/mockData';
-import { Playlist } from '../types';
-import { Plus, Music, Trash2, Globe } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Music, Trash2, X, Pencil, Check } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { currentUser } from '../auth/currentUserInfo';
+import { HARDCODED_EMOJIS } from './FeedPage';
+
+const EMOJI_NAMES: Record<string, string> = {
+  '🔥': 'Fire',
+  '🪩': 'Disco',
+  '💔': 'Heartbreak',
+  '✨': 'Sparkle',
+  '🌙': 'Night Vibes',
+};
+
+interface PlaylistSong {
+  id: string;       // song id
+  postId: string;   // source post — used to remove the reaction
+  spotifyUrl: string;
+  albumArt: string;
+  songTitle: string;
+  artist: string;
+}
+
+interface Playlist {
+  id: string;          // '__emoji__🔥' for auto-playlists, UUID for custom
+  name: string;
+  emoji: string | null;
+  songs: PlaylistSong[];
+  isAuto: boolean;     // true = derived from reactions, cannot be renamed/deleted
+}
 
 export function PlaylistsPage() {
-  const [playlists, setPlaylists] = useState(initialPlaylists);
-  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
-  const [showNewPlaylist, setShowNewPlaylist] = useState(false);
-  const [newPlaylistName, setNewPlaylistName] = useState('');
-  const [newPlaylistEmoji, setNewPlaylistEmoji] = useState('');
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [selected, setSelected] = useState<Playlist | null>(null);
+  const [showNew, setShowNew] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newEmoji, setNewEmoji] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
-  const emojiOptions = ['🌧️', '🔥', '🌙', '✨', '🌊', '🦋', '🎭', '🌸', '⚡', '🔮'];
+  useEffect(() => {
+    loadAll();
+    const onVisible = () => { if (document.visibilityState === 'visible') loadAll(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
 
-  const handleCreatePlaylist = () => {
-    if (!newPlaylistName.trim()) return;
+  async function loadAll() {
+    // Step 1 — get all (emoji, post_id) reactions for this user
+    const { data: reactionRows, error: rErr } = await supabase
+      .from('reactions')
+      .select('emoji, post_id')
+      .eq('user_id', currentUser.id);
 
-    const newPlaylist: Playlist = {
-      id: `playlist-${Date.now()}`,
-      name: newPlaylistName,
-      emoji: newPlaylistEmoji || undefined,
-      songs: [],
-    };
+    if (rErr) console.error('Error loading reactions:', rErr);
 
-    setPlaylists([...playlists, newPlaylist]);
-    setNewPlaylistName('');
-    setNewPlaylistEmoji('');
-    setShowNewPlaylist(false);
-  };
+    const rows = reactionRows ?? [];
+    const songsByEmoji: Record<string, PlaylistSong[]> = {};
+    HARDCODED_EMOJIS.forEach(e => { songsByEmoji[e] = []; });
 
-  const handleDeletePlaylist = (playlistId: string) => {
-    setPlaylists(playlists.filter(p => p.id !== playlistId));
-    if (selectedPlaylist?.id === playlistId) {
-      setSelectedPlaylist(null);
-    }
-  };
+    if (rows.length > 0) {
+      // Step 2 — fetch songs for those posts in a single query
+      const postIds = [...new Set(rows.map((r: any) => r.post_id))];
+      const { data: postRows, error: pErr } = await supabase
+        .from('posts')
+        .select('id, songs!posts_song_id_fkey (id, spotify_url, song_title, artist, album_art)')
+        .in('id', postIds);
 
-  const handleRemoveSong = (playlistId: string, songId: string) => {
-    setPlaylists(playlists.map(playlist => {
-      if (playlist.id === playlistId) {
-        return {
-          ...playlist,
-          songs: playlist.songs.filter(s => s.id !== songId),
-        };
-      }
-      return playlist;
-    }));
-    
-    if (selectedPlaylist?.id === playlistId) {
-      setSelectedPlaylist({
-        ...selectedPlaylist,
-        songs: selectedPlaylist.songs.filter(s => s.id !== songId),
+      if (pErr) console.error('Error loading post songs:', pErr);
+
+      const songByPost: Record<string, { id: string; spotifyUrl: string; albumArt: string; songTitle: string; artist: string }> = {};
+      (postRows ?? []).forEach((p: any) => {
+        if (p.songs) {
+          songByPost[p.id] = {
+            id: p.songs.id,
+            spotifyUrl: p.songs.spotify_url ?? '',
+            albumArt: p.songs.album_art ?? 'https://placehold.co/200x200',
+            songTitle: p.songs.song_title ?? 'Unknown',
+            artist: p.songs.artist ?? 'Unknown',
+          };
+        }
+      });
+
+      rows.forEach((row: any) => {
+        const base = songByPost[row.post_id];
+        if (!base || !songsByEmoji[row.emoji]) return;
+        // Deduplicate by postId (one reaction per post)
+        if (!songsByEmoji[row.emoji].find(s => s.postId === row.post_id)) {
+          songsByEmoji[row.emoji].push({ ...base, postId: row.post_id });
+        }
       });
     }
-  };
+
+    // Auto emoji playlists — only for emojis the user has actually reacted with
+    const autoPlaylists: Playlist[] = HARDCODED_EMOJIS
+      .filter(e => songsByEmoji[e].length > 0)
+      .map(e => ({
+        id: `__emoji__${e}`,
+        name: EMOJI_NAMES[e] ?? e,
+        emoji: e,
+        songs: songsByEmoji[e],
+        isAuto: true,
+      }));
+
+    // Custom playlists from DB — songs come from reactions matching their emoji
+    const { data: customRows, error: cErr } = await supabase
+      .from('playlists')
+      .select('id, name, emoji');
+    if (cErr) console.error('Error loading playlists:', cErr);
+
+    const customPlaylists: Playlist[] = (customRows ?? []).map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      emoji: p.emoji ?? null,
+      songs: p.emoji ? (songsByEmoji[p.emoji] ?? []) : [],
+      isAuto: false,
+    }));
+
+    const next = [...autoPlaylists, ...customPlaylists];
+    setPlaylists(next);
+
+    // Keep selected in sync if it's open
+    setSelected(prev => {
+      if (!prev) return null;
+      return next.find(p => p.id === prev.id) ?? null;
+    });
+  }
+
+  async function handleCreate() {
+    if (!newName.trim()) return;
+    setIsCreating(true);
+    const { error } = await supabase.from('playlists').insert({
+      id: crypto.randomUUID(),
+      name: newName.trim(),
+      emoji: newEmoji || null,
+    });
+    if (error) { console.error('Error creating playlist:', error); }
+    else { setShowNew(false); setNewName(''); setNewEmoji(''); await loadAll(); }
+    setIsCreating(false);
+  }
+
+  async function handleDeletePlaylist(id: string) {
+    const { error } = await supabase.from('playlists').delete().eq('id', id);
+    if (error) { console.error('Error deleting playlist:', error); return; }
+    setSelected(null);
+    await loadAll();
+  }
+
+  async function handleRenamePlaylist(id: string, newName: string) {
+    const { error } = await supabase.from('playlists').update({ name: newName.trim() }).eq('id', id);
+    if (error) { console.error('Error renaming playlist:', error); return; }
+    await loadAll();
+  }
+
+  // Removing a song from a playlist = removing the reaction on that post
+  async function handleRemoveSong(_playlist: Playlist, song: PlaylistSong) {
+    const { error } = await supabase
+      .from('reactions')
+      .delete()
+      .eq('user_id', currentUser.id)
+      .eq('post_id', song.postId);
+
+    if (error) { console.error('Error removing reaction:', error); return; }
+    await loadAll();
+  }
 
   return (
     <div className="min-h-screen bg-white">
@@ -61,7 +170,7 @@ export function PlaylistsPage() {
         <div className="px-4 py-4 flex justify-between items-center">
           <h1 className="text-xl font-bold">MY PLAYLISTS</h1>
           <button
-            onClick={() => setShowNewPlaylist(true)}
+            onClick={() => setShowNew(true)}
             className="bg-gradient-to-r from-green-400 to-blue-400 text-white px-4 py-2 border-2 border-black font-bold hover:translate-x-0.5 hover:translate-y-0.5 transition-transform shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
           >
             + NEW
@@ -70,210 +179,252 @@ export function PlaylistsPage() {
       </div>
 
       {/* New Playlist Modal */}
-      {showNewPlaylist && (
+      {showNew && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white border-4 border-black p-6 w-full max-w-md shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
             <h2 className="text-xl font-bold mb-4">CREATE PLAYLIST</h2>
-            
             <input
               type="text"
               placeholder="Playlist name"
-              value={newPlaylistName}
-              onChange={(e) => setNewPlaylistName(e.target.value)}
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleCreate()}
               className="w-full bg-blue-100 border-2 border-black px-4 py-2 mb-4 focus:outline-none focus:border-purple-500"
             />
-
             <div className="mb-4">
               <p className="text-sm text-gray-600 mb-2 font-bold">CHOOSE AN EMOJI (OPTIONAL):</p>
-              <div className="grid grid-cols-5 gap-2">
-                {emojiOptions.map(emoji => (
+              <div className="flex gap-3">
+                {HARDCODED_EMOJIS.map(emoji => (
                   <button
                     key={emoji}
-                    onClick={() => setNewPlaylistEmoji(emoji === newPlaylistEmoji ? '' : emoji)}
-                    className={`w-12 h-12 flex items-center justify-center text-2xl transition-all border-2 border-black ${
-                      emoji === newPlaylistEmoji
-                        ? 'bg-gradient-to-br from-yellow-300 to-pink-300 scale-110'
-                        : 'bg-white hover:bg-gray-100'
+                    onClick={() => setNewEmoji(emoji === newEmoji ? '' : emoji)}
+                    className={`w-12 h-12 flex items-center justify-center text-2xl border-2 border-black transition-all ${
+                      emoji === newEmoji ? 'bg-gradient-to-br from-yellow-300 to-pink-300 scale-110' : 'bg-white hover:bg-gray-100'
                     }`}
                   >
                     {emoji}
                   </button>
                 ))}
               </div>
+              {newEmoji && (
+                <p className="text-xs text-gray-500 mt-2">Songs you reacted to with {newEmoji} will appear here.</p>
+              )}
             </div>
-
             <div className="flex gap-2">
               <button
-                onClick={() => {
-                  setShowNewPlaylist(false);
-                  setNewPlaylistName('');
-                  setNewPlaylistEmoji('');
-                }}
-                className="flex-1 bg-gray-200 border-2 border-black px-4 py-2 font-bold hover:bg-gray-300 transition-colors"
+                onClick={() => { setShowNew(false); setNewName(''); setNewEmoji(''); }}
+                className="flex-1 bg-gray-200 border-2 border-black px-4 py-2 font-bold hover:bg-gray-300"
               >
                 CANCEL
               </button>
               <button
-                onClick={handleCreatePlaylist}
-                className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-4 py-2 font-bold hover:translate-x-0.5 hover:translate-y-0.5 transition-transform"
+                onClick={handleCreate}
+                disabled={isCreating || !newName.trim()}
+                className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-4 py-2 font-bold disabled:opacity-50"
               >
-                CREATE
+                {isCreating ? 'CREATING...' : 'CREATE'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Playlists List */}
+      {/* Playlist list */}
       <div className="p-4 space-y-3">
-        {playlists.map((playlist) => {
-          const isMasterPlaylist = playlist.id === 'playlist-master';
-          const gradientColor = isMasterPlaylist 
-            ? 'from-orange-400 to-pink-400' 
-            : playlist.emoji 
-            ? 'from-purple-300 to-blue-300'
-            : 'from-gray-200 to-gray-300';
-
-          return (
-            <div
-              key={playlist.id}
-              className="bg-white border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] overflow-hidden"
-            >
-              <div className={`bg-gradient-to-r ${gradientColor} p-4 border-b-4 border-black flex items-center gap-3`}>
-                {isMasterPlaylist ? (
-                  <div className="w-12 h-12 bg-white border-2 border-black flex items-center justify-center">
-                    <Globe className="w-6 h-6 text-black" />
-                  </div>
-                ) : playlist.emoji ? (
-                  <div className="w-12 h-12 bg-white border-2 border-black flex items-center justify-center text-2xl">
-                    {playlist.emoji}
-                  </div>
-                ) : (
-                  <div className="w-12 h-12 bg-white border-2 border-black flex items-center justify-center">
-                    <Music className="w-6 h-6 text-black" />
-                  </div>
-                )}
-                <div className="flex-1">
-                  <h3 className="font-bold text-black">{playlist.name}</h3>
-                  <p className="text-sm text-black/80 font-medium">
-                    {playlist.songs.length} {playlist.songs.length === 1 ? 'SONG' : 'SONGS'}
-                  </p>
-                </div>
-                {!isMasterPlaylist && playlist.id !== 'playlist-1' && (
-                  <button
-                    onClick={() => handleDeletePlaylist(playlist.id)}
-                    className="p-2 hover:bg-black/10 border-2 border-black bg-white transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4 text-black" />
-                  </button>
-                )}
-              </div>
-
-              {playlist.songs.length > 0 && (
-                <button
-                  onClick={() => setSelectedPlaylist(playlist)}
-                  className="w-full p-3 text-sm font-bold text-black hover:bg-gradient-to-r hover:from-blue-100 hover:to-purple-100 transition-colors text-left border-t-2 border-transparent hover:border-black"
-                >
-                  VIEW ALL SONGS →
-                </button>
-              )}
-            </div>
-          );
-        })}
+        {playlists.length === 0 && (
+          <p className="text-center text-gray-500 py-12 text-sm">
+            No playlists yet.<br />React to posts or tap + NEW to get started.
+          </p>
+        )}
+        {playlists.map(pl => (
+          <PlaylistCard
+            key={pl.id}
+            playlist={pl}
+            onClick={() => setSelected(pl)}
+          />
+        ))}
       </div>
 
-      {playlists.length === 0 && (
-        <div className="text-center py-16 text-gray-500">
-          <Music className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p>No playlists yet.</p>
-          <p className="text-sm mt-2">Create your first playlist!</p>
-        </div>
+      {/* Detail / edit modal */}
+      {selected && (
+        <PlaylistDetailModal
+          playlist={selected}
+          onClose={() => setSelected(null)}
+          onRemoveSong={song => handleRemoveSong(selected, song)}
+          onRename={!selected.isAuto ? (name) => handleRenamePlaylist(selected.id, name) : undefined}
+          onDelete={!selected.isAuto ? () => handleDeletePlaylist(selected.id) : undefined}
+        />
       )}
+    </div>
+  );
+}
 
-      {/* Playlist Detail Modal */}
-      {selectedPlaylist && (
-        <div
-          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-          onClick={() => setSelectedPlaylist(null)}
-        >
-          <div
-            className="bg-white border-4 border-black w-full max-w-md max-h-[80vh] overflow-hidden shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className={`bg-gradient-to-r ${
-              selectedPlaylist.id === 'playlist-master' 
-                ? 'from-orange-400 to-pink-400'
-                : selectedPlaylist.emoji
-                ? 'from-purple-300 to-blue-300'
-                : 'from-gray-200 to-gray-300'
-            } p-6 border-b-4 border-black flex items-center gap-3`}>
-              {selectedPlaylist.id === 'playlist-master' ? (
-                <div className="w-16 h-16 bg-white border-2 border-black flex items-center justify-center">
-                  <Globe className="w-8 h-8 text-black" />
-                </div>
-              ) : selectedPlaylist.emoji ? (
-                <div className="w-16 h-16 bg-white border-2 border-black flex items-center justify-center text-3xl">
-                  {selectedPlaylist.emoji}
+// ── Playlist card ───────────────────────────────────────────────
+
+function PlaylistCard({ playlist, onClick }: { playlist: Playlist; onClick: () => void }) {
+  const gradient = playlist.emoji ? 'from-purple-300 to-blue-300' : 'from-gray-200 to-gray-300';
+
+  return (
+    <button
+      onClick={onClick}
+      className="w-full bg-white border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] overflow-hidden text-left hover:translate-x-0.5 hover:translate-y-0.5 transition-transform"
+    >
+      <div className={`bg-gradient-to-r ${gradient} p-4 flex items-center gap-3`}>
+        <div className="w-12 h-12 bg-white border-2 border-black flex items-center justify-center flex-shrink-0">
+          {playlist.emoji ? <span className="text-2xl">{playlist.emoji}</span> : <Music className="w-6 h-6 text-black" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-black truncate">{playlist.name}</h3>
+          <p className="text-sm text-black/70 font-medium">
+            {playlist.songs.length} {playlist.songs.length === 1 ? 'SONG' : 'SONGS'}
+            {playlist.isAuto && <span className="ml-2 text-xs opacity-60">· from reactions</span>}
+          </p>
+        </div>
+        {!playlist.isAuto && <Pencil className="w-4 h-4 text-black/50 flex-shrink-0" />}
+      </div>
+    </button>
+  );
+}
+
+// ── Detail / edit modal ─────────────────────────────────────────
+
+function PlaylistDetailModal({
+  playlist, onClose, onRemoveSong, onRename, onDelete,
+}: {
+  playlist: Playlist;
+  onClose: () => void;
+  onRemoveSong: (song: PlaylistSong) => void;
+  onRename?: (name: string) => void;
+  onDelete?: () => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(playlist.name);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const gradient = playlist.emoji ? 'from-purple-300 to-blue-300' : 'from-gray-200 to-gray-300';
+
+  function submitRename() {
+    if (editName.trim() && editName.trim() !== playlist.name) {
+      onRename?.(editName.trim());
+    }
+    setIsEditing(false);
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="bg-white border-4 border-black w-full max-w-md max-h-[85vh] overflow-hidden shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className={`bg-gradient-to-r ${gradient} p-6 border-b-4 border-black`}>
+          <div className="flex items-center gap-3">
+            <div className="w-14 h-14 bg-white border-2 border-black flex items-center justify-center flex-shrink-0">
+              {playlist.emoji ? <span className="text-3xl">{playlist.emoji}</span> : <Music className="w-7 h-7 text-black" />}
+            </div>
+
+            <div className="flex-1 min-w-0">
+              {isEditing ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    autoFocus
+                    value={editName}
+                    onChange={e => setEditName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') submitRename(); if (e.key === 'Escape') setIsEditing(false); }}
+                    className="flex-1 bg-white border-2 border-black px-2 py-1 font-bold text-black focus:outline-none text-base"
+                  />
+                  <button onClick={submitRename} className="p-1 bg-white border-2 border-black hover:bg-green-100">
+                    <Check className="w-4 h-4 text-black" />
+                  </button>
+                  <button onClick={() => setIsEditing(false)} className="p-1 bg-white border-2 border-black hover:bg-red-100">
+                    <X className="w-4 h-4 text-black" />
+                  </button>
                 </div>
               ) : (
-                <div className="w-16 h-16 bg-white border-2 border-black flex items-center justify-center">
-                  <Music className="w-8 h-8 text-black" />
+                <h2 className="text-xl font-bold text-black truncate">{playlist.name}</h2>
+              )}
+              <p className="text-sm text-black/70 font-medium mt-0.5">{playlist.songs.length} SONGS</p>
+            </div>
+
+            <button onClick={onClose} className="p-1 hover:bg-black/10 border-2 border-black bg-white flex-shrink-0 self-start">
+              <X className="w-4 h-4 text-black" />
+            </button>
+          </div>
+
+          {/* Edit actions for custom playlists */}
+          {!playlist.isAuto && (
+            <div className="flex gap-2 mt-3">
+              {!isEditing && (
+                <button
+                  onClick={() => { setEditName(playlist.name); setIsEditing(true); }}
+                  className="flex items-center gap-1 px-3 py-1 bg-white border-2 border-black text-xs font-bold hover:bg-gray-100"
+                >
+                  <Pencil className="w-3 h-3" /> RENAME
+                </button>
+              )}
+              {!confirmDelete ? (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  className="flex items-center gap-1 px-3 py-1 bg-white border-2 border-black text-xs font-bold hover:bg-red-50 text-red-600"
+                >
+                  <Trash2 className="w-3 h-3" /> DELETE PLAYLIST
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-red-600">Sure?</span>
+                  <button
+                    onClick={() => { onDelete?.(); onClose(); }}
+                    className="px-3 py-1 bg-red-500 text-white border-2 border-black text-xs font-bold"
+                  >
+                    YES
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="px-3 py-1 bg-white border-2 border-black text-xs font-bold"
+                  >
+                    NO
+                  </button>
                 </div>
               )}
-              <div>
-                <h2 className="text-xl font-bold text-black">{selectedPlaylist.name}</h2>
-                <p className="text-sm text-black/80 font-medium">
-                  {selectedPlaylist.songs.length} {selectedPlaylist.songs.length === 1 ? 'SONG' : 'SONGS'}
-                </p>
-              </div>
             </div>
+          )}
 
-            <div className="overflow-y-auto p-4 space-y-3 flex-1 bg-gradient-to-br from-blue-50 to-purple-50">
-              {selectedPlaylist.songs.map((song) => (
-                <div
-                  key={song.id}
-                  onClick={() => {
-                    // open the song in Spotify in a new tab
-                    const url = song.spotifyUrl || `https://open.spotify.com/track/${song.id}`;
-                    window.open(url, '_blank', 'noopener');
-                  }}
-                  className="flex gap-3 p-3 bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] cursor-pointer"
-                >
-                  <img
-                    src={song.albumArt}
-                    alt={song.songTitle}
-                    className="w-14 h-14 border-2 border-black object-cover"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold truncate text-black">{song.songTitle}</p>
-                    <p className="text-sm text-gray-600 truncate font-medium">{song.artist}</p>
-                  </div>
-                  {selectedPlaylist.id !== 'playlist-master' && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveSong(selectedPlaylist.id, song.id);
-                      }}
-                      className="p-2 hover:bg-red-100 border-2 border-black bg-white transition-colors self-center"
-                    >
-                      <Trash2 className="w-4 h-4 text-black" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
+          {playlist.isAuto && (
+            <p className="text-xs text-black/60 mt-2">Remove a song by clicking the trash icon — this removes your reaction.</p>
+          )}
+        </div>
 
-            <div className="p-4 border-t-4 border-black bg-white">
-              <button
-                onClick={() => setSelectedPlaylist(null)}
-                className="w-full bg-gray-200 border-2 border-black px-4 py-2 font-bold hover:bg-gray-300 transition-colors"
+        {/* Song list */}
+        <div className="overflow-y-auto p-4 space-y-2 flex-1 bg-gradient-to-br from-blue-50 to-purple-50">
+          {playlist.songs.map(song => (
+            <div key={song.postId} className="flex gap-3 p-3 bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+              <img
+                src={song.albumArt}
+                alt={song.songTitle}
+                onClick={() => window.open(song.spotifyUrl || `https://open.spotify.com/track/${song.id}`, '_blank', 'noopener')}
+                className="w-14 h-14 border-2 border-black object-cover flex-shrink-0 cursor-pointer"
+              />
+              <div
+                className="flex-1 min-w-0 flex flex-col justify-center cursor-pointer"
+                onClick={() => window.open(song.spotifyUrl || `https://open.spotify.com/track/${song.id}`, '_blank', 'noopener')}
               >
-                CLOSE
+                <p className="font-bold truncate text-black">{song.songTitle}</p>
+                <p className="text-sm text-gray-600 truncate font-medium">{song.artist}</p>
+              </div>
+              <button
+                onClick={() => onRemoveSong(song)}
+                className="p-2 hover:bg-red-100 border-2 border-black bg-white transition-colors self-center flex-shrink-0"
+                title="Remove (unreact)"
+              >
+                <Trash2 className="w-4 h-4 text-black" />
               </button>
             </div>
-          </div>
+          ))}
+          {playlist.songs.length === 0 && (
+            <p className="text-center text-gray-500 text-sm py-8">No songs yet.</p>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

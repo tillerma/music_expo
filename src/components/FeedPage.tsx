@@ -4,9 +4,11 @@ import { isLoggedIn, logout } from '../utils/spotifyAuth';
 import { currentUser } from '../auth/currentUserInfo';
 // import { currentUser } from '../data/mockData';
 import { SongPost, Comment } from '../types';
-import { ChevronDown, ChevronUp, MessageCircle, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronUp, MessageCircle, ExternalLink, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { searchTracks, getAudioFeatures } from '../api/spotify';
+
+export const HARDCODED_EMOJIS = ['🔥', '🪩', '💔', '✨', '🌙'];
 
 interface TrackResult {
   id: string;
@@ -18,9 +20,9 @@ interface TrackResult {
 
 interface SongPostComponentProps {
   post: SongPost;
-  emojiSet: string[];
   onReaction: (postId: string, emoji: string) => void;
   onAddComment: (postId: string, comment: Comment) => void;
+  onDeleteComment: (commentId: string) => void;
 }
 
 export function FeedPage() {
@@ -31,12 +33,10 @@ export function FeedPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [selectedTrack, setSelectedTrack] = useState<any | null>(null);
-  const [newPostCaption, setNewPostCaption] = useState('');
 
   useEffect(() => {
 
     fetchPosts();
-    fetchTodayEmojis();
 
     if (!searchQuery || searchQuery.trim().length < 3) {
       setSearchResults([]);
@@ -61,43 +61,61 @@ export function FeedPage() {
   }, [searchQuery]);
   const [caption, setCaption] = useState('');
   const [isPosting, setIsPosting] = useState(false);
-  const [emojiSet, setEmojiSet] = useState<string[]>([]);
 
   // search state
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function fetchPosts() {
-    const { data, error } = await supabase
-    .from('posts')
-    .select(`
-      *,
-      profiles!posts_user_id_fkey (
-        id,
-        username,
-        display_name,
-        bio,
-        avatar_url,
-        followers,
-        following
-      ),
-      reactions (
-        id,
-        emoji,
-        user_id,
-        user_name
-      ),
-      comments (
-        id,
-        user_id,
-        caption,
-        song_title,
-        artist,
-        album_art,
-        spotify_url,
-        timestamp
-      )
-    `)
-    .order('created_at', { ascending: false });
+      const { data, error } = await supabase
+      .from('posts')
+      .select(`
+        *,
+        profiles!posts_user_id_fkey (
+          id,
+          username,
+          display_name,
+          bio,
+          avatar_url,
+          followers,
+          following
+        ),
+        songs!posts_song_id_fkey (
+          id,
+          spotify_url,
+          song_title,
+          artist,
+          album_art,
+          danceability,
+          energy,
+          valence,
+          acousticness,
+          instrumentalness,
+          liveness,
+          speechiness,
+          tempo,
+          loudness
+        ),
+        reactions (
+          id,
+          emoji,
+          user_id,
+          user_name
+        ),
+        comments (
+          id,
+          user_id,
+          caption,
+          song_title,
+          artist,
+          album_art,
+          spotify_url,
+          timestamp,
+          profiles!comments_user_id_fkey (
+            id, username, display_name, avatar_url
+          )
+        )
+      `)
+      .order('created_at', { ascending: false });
 
       console.log('SUPABASE DATA:', data);
 
@@ -133,11 +151,11 @@ export function FeedPage() {
           id: comment.id,
           userId: comment.user_id,
           user: {
-            id: comment.user_id,
-            username: comment.user_id,
-            displayName: comment.user_id,
+            id: comment.profiles?.id ?? comment.user_id,
+            username: comment.profiles?.username ?? comment.user_id,
+            displayName: comment.profiles?.display_name ?? comment.profiles?.username ?? comment.user_id,
             bio: '',
-            avatarUrl: 'https://placehold.co/100x100',
+            avatarUrl: comment.profiles?.avatar_url ?? 'https://placehold.co/100x100',
             followers: 0,
             following: 0,
           },
@@ -157,25 +175,6 @@ export function FeedPage() {
       setPosts(mappedPosts);
     }
 
-  async function fetchTodayEmojis() {
-    const todayStr = new Date().toISOString().split('T')[0];
-
-    const { data, error } = await supabase
-      .from('daily_emoji_sets')
-      .select('*')
-      .eq('date', todayStr)
-      .single();
-
-    console.log('EMOJI DATA:', data);
-    console.log('EMOJI ERROR:', error);
-
-    if (error) {
-      console.error('Error fetching emojis:', error);
-      return;
-    }
-
-    setEmojiSet(data?.emojis ?? []);
-  }
 
   async function getOrCreateSong({
     spotifyUrl,
@@ -374,15 +373,31 @@ export function FeedPage() {
     );
 
     if (existingReaction) {
-      const { error } = await supabase
+      // Delete existing reaction (same emoji = toggle off, different = swap)
+      const { error: delError } = await supabase
         .from('reactions')
         .delete()
         .eq('post_id', postId)
         .eq('user_id', currentUser.id);
 
-      if (error) {
-        console.error('Error deleting reaction:', error);
+      if (delError) {
+        console.error('Error deleting reaction:', delError);
         return;
+      }
+
+      // If swapping to a different emoji, insert the new one
+      if (existingReaction.emoji !== emoji) {
+        const { error: insError } = await supabase.from('reactions').insert({
+          id: crypto.randomUUID(),
+          post_id: postId,
+          emoji,
+          user_id: currentUser.id,
+          user_name: currentUser.username,
+        });
+        if (insError) {
+          console.error('Error swapping reaction:', insError);
+          return;
+        }
       }
     } else {
       const { error } = await supabase.from('reactions').insert({
@@ -423,6 +438,16 @@ export function FeedPage() {
     await fetchPosts();
   };
 
+  const handleDeleteComment = async (commentId: string) => {
+    const { error } = await supabase
+      .from('comments')
+      .delete()
+      .eq('id', commentId)
+      .eq('user_id', currentUser.id);
+    if (error) { console.error('Error deleting comment:', error); return; }
+    await fetchPosts();
+  };
+
   const today = new Date();
   const formattedDate = today.toLocaleDateString('en-US', {
     month: 'long',
@@ -453,22 +478,6 @@ export function FeedPage() {
         </div>
         
         {/* Today's Emoji Set */}
-        <div className="px-4 pb-3">
-          <p className="text-xs text-gray-600 mb-2 font-bold">TODAY'S EMOTIONAL PALETTE:</p>
-
-          <div className="flex gap-2">
-          {emojiSet.map((emoji, index) => (
-            <div
-              key={index}
-                className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-400 border-2 border-black flex items-center justify-center text-xl shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-            >
-              {emoji}
-            </div>
-          ))}
-        </div>
-        </div>
-
-
       </div>
 
       {/* New Post Modal */}
@@ -521,8 +530,8 @@ export function FeedPage() {
             <textarea
               placeholder="Caption (max 140 characters)"
               maxLength={140}
-              value={newPostCaption}
-              onChange={(e) => setNewPostCaption(e.target.value)}
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
               className="w-full bg-yellow-100 border-2 border-black px-4 py-2 mb-4 focus:outline-none focus:border-purple-500 resize-none h-24"
             />
             {/* Preview of selected track (if any) */}
@@ -568,9 +577,9 @@ export function FeedPage() {
           <SongPostComponent
             key={post.id}
             post={post}
-            emojiSet={emojiSet}//{todayEmojiSet.emojis}
             onReaction={handleReaction}
             onAddComment={handleAddComment}
+            onDeleteComment={handleDeleteComment}
           />
         ))}
       </div>
@@ -621,11 +630,19 @@ function AuthButton() {
   );
 }
 
-function SongPostComponent({ post, emojiSet, onReaction, onAddComment }: SongPostComponentProps) {
+function SongPostComponent({ post, onReaction, onAddComment, onDeleteComment }: SongPostComponentProps) {
   const [showReactions, setShowReactions] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showAddComment, setShowAddComment] = useState(false);
-  const userReaction = post.reactions.find(r => r.userId === 'user-1');
+  const [hoveredEmoji, setHoveredEmoji] = useState<string | null>(null);
+
+  const userReaction = post.reactions.find(r => r.userId === currentUser.id);
+
+  // Group reactions by emoji — only show emojis with at least 1 reaction
+  const reactionGroups = HARDCODED_EMOJIS.map(emoji => {
+    const reactors = post.reactions.filter(r => r.emoji === emoji);
+    return { emoji, count: reactors.length, recentUsers: reactors.slice(-5).map(r => r.userName) };
+  }).filter(g => g.count > 0);
 
   return (
     <div className="px-4 py-6 bg-white">
@@ -639,7 +656,6 @@ function SongPostComponent({ post, emojiSet, onReaction, onAddComment }: SongPos
         <div>
           <p className="font-bold">{post.user.displayName}</p>
           <Link to={`/profile/${post.user.username}`} className="text-sm text-gray-600">@{post.user.username}</Link>
-          {/* <p className="text-sm text-gray-600">@{post.user.username}</p> */}
         </div>
       </div>
 
@@ -667,42 +683,70 @@ function SongPostComponent({ post, emojiSet, onReaction, onAddComment }: SongPos
       {/* Caption */}
       <p className="text-black mb-4">{post.caption}</p>
 
-      {/* Reactions */}
+      {/* Reaction counts */}
       <div className="flex items-center gap-2 flex-wrap mb-3">
-        {post.reactions.map((reaction, i) => (
-          <div
-            key={i}
-            className="bg-gradient-to-r from-yellow-300 to-pink-300 border-2 border-black px-3 py-1 text-sm flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-          >
-            <span>{reaction.emoji}</span>
-            <span className="text-black font-bold">{reaction.userName}</span>
-          </div>
-        ))}
-        
-        {/* Add Reaction Button */}
+        {reactionGroups.map(({ emoji, count, recentUsers }) => {
+          const isMyReaction = userReaction?.emoji === emoji;
+          return (
+            <div key={emoji} className="relative">
+              <button
+                onClick={() => onReaction(post.id, emoji)}
+                onMouseEnter={() => setHoveredEmoji(emoji)}
+                onMouseLeave={() => setHoveredEmoji(null)}
+                className={`bg-gradient-to-r from-yellow-300 to-pink-300 border-2 border-black px-3 py-1 text-sm flex items-center gap-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] ${
+                  isMyReaction ? 'ring-2 ring-blue-500 ring-offset-1' : ''
+                }`}
+              >
+                <span>{emoji}</span>
+                <span className="text-black font-bold">{count}</span>
+              </button>
+
+              {/* Hover tooltip — names only, black on white */}
+              {hoveredEmoji === emoji && (
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-20 pointer-events-none flex flex-col items-center">
+                  <div className="bg-white border-2 border-black px-3 py-2 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] min-w-[110px] text-center">
+                    {recentUsers
+                      .filter(n => n && String(n).trim())
+                      .slice()
+                      .reverse()
+                      .map((name, i) => (
+                        <div key={i} className="text-xs font-bold text-black leading-5">@{name}</div>
+                      ))}
+                    {count > 5 && (
+                      <div className="text-xs text-gray-500 mt-0.5">+{count - 5} more</div>
+                    )}
+                  </div>
+                  <div className="w-0 h-0 border-l-[7px] border-r-[7px] border-t-[7px] border-l-transparent border-r-transparent border-t-black" />
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* + always visible */}
         <button
           onClick={() => setShowReactions(!showReactions)}
-          className={`px-3 py-1 text-sm border-2 border-black transition-colors font-bold ${
-            userReaction
-              ? 'bg-gradient-to-r from-blue-400 to-purple-400 text-white'
-              : 'bg-white hover:bg-gray-100'
-          }`}
+          className="px-3 py-1 text-sm border-2 border-black font-bold bg-white hover:bg-gray-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
         >
-          {userReaction ? userReaction.emoji : '+'}
+          +
         </button>
       </div>
 
       {/* Emoji Picker */}
       {showReactions && (
         <div className="mt-3 flex gap-2 p-3 bg-gradient-to-r from-blue-100 to-purple-100 border-2 border-black mb-3">
-          {emojiSet.map((emoji, i) => (
+          {HARDCODED_EMOJIS.map((emoji) => (
             <button
-              key={i}
+              key={emoji}
               onClick={() => {
                 onReaction(post.id, emoji);
                 setShowReactions(false);
               }}
-              className="w-10 h-10 hover:bg-white border-2 border-transparent hover:border-black flex items-center justify-center text-xl transition-all"
+              className={`w-10 h-10 border-2 flex items-center justify-center text-xl transition-all ${
+                userReaction?.emoji === emoji
+                  ? 'border-blue-500 bg-blue-100'
+                  : 'border-transparent hover:border-black hover:bg-white'
+              }`}
             >
               {emoji}
             </button>
@@ -741,7 +785,11 @@ function SongPostComponent({ post, emojiSet, onReaction, onAddComment }: SongPos
 
             {/* Comments List */}
             {post.comments.map((comment) => (
-              <CommentComponent key={comment.id} comment={comment} />
+              <CommentComponent
+                key={comment.id}
+                comment={comment}
+                onDelete={comment.userId === currentUser.id ? () => onDeleteComment(comment.id) : undefined}
+              />
             ))}
 
             {post.comments.length === 0 && !showAddComment && (
@@ -756,49 +804,60 @@ function SongPostComponent({ post, emojiSet, onReaction, onAddComment }: SongPos
 
 interface CommentComponentProps {
   comment: Comment;
+  onDelete?: () => void;
 }
 
-function CommentComponent({ comment }: CommentComponentProps) {
+function CommentComponent({ comment, onDelete }: CommentComponentProps) {
   return (
-    <div className="flex gap-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-black">
-      {/* User Info */}
-      <div className="flex flex-col items-center gap-1 min-w-[60px]">
-        <img
-          src={comment.user.avatarUrl}
-          alt={comment.user.username}
-          className="w-12 h-12 border-2 border-black object-cover"
-        />
-        <p className="text-xs font-bold text-center">{comment.user.displayName}</p>
-        <Link to={`/profile/${comment.user.username}`} className="text-sm text-gray-600">@{comment.user.username}</Link>
-        {/* <p className="text-xs text-gray-600">@{comment.user.username}</p> */}
-      </div>
+    <div className="flex gap-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+      {/* Avatar */}
+      <img
+        src={comment.user.avatarUrl}
+        alt={comment.user.username}
+        className="w-8 h-8 border-2 border-black object-cover flex-shrink-0 mt-0.5"
+      />
 
-      {/* Comment Content */}
-      <div className="flex-1">
+      {/* Body */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline gap-2 mb-1">
+          <span className="font-bold text-sm text-black leading-none">{comment.user.displayName}</span>
+          <Link to={`/profile/${comment.user.username}`} className="text-xs text-gray-500 hover:underline">
+            @{comment.user.username}
+          </Link>
+        </div>
+
         {comment.song && (
-          <div className="mb-3 flex gap-2 bg-white border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-            <img
-              src={comment.song.albumArt}
-              alt={comment.song.songTitle}
-              className="w-12 h-12 border-2 border-black object-cover"
-            />
+          <div className="mb-2 flex gap-2 bg-white border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+            <img src={comment.song.albumArt} alt={comment.song.songTitle} className="w-10 h-10 border-2 border-black object-cover flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold truncate">{comment.song.songTitle}</p>
+              <p className="text-xs font-bold truncate">{comment.song.songTitle}</p>
               <p className="text-xs text-gray-600 truncate">{comment.song.artist}</p>
             </div>
             <a
               href={comment.song.spotifyUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="self-center p-2 bg-green-500 hover:bg-green-600 border-2 border-black transition-colors"
+              className="self-center p-1.5 bg-green-500 hover:bg-green-600 border-2 border-black transition-colors flex-shrink-0"
               title="Open in Spotify"
             >
-              <ExternalLink className="w-4 h-4 text-white" />
+              <ExternalLink className="w-3 h-3 text-white" />
             </a>
           </div>
         )}
+
         <p className="text-sm text-black">{comment.caption}</p>
       </div>
+
+      {/* Delete (own comments only) */}
+      {onDelete && (
+        <button
+          onClick={onDelete}
+          className="p-1.5 self-start flex-shrink-0 border-2 border-black bg-white hover:bg-red-50 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+          title="Delete comment"
+        >
+          <Trash2 className="w-3.5 h-3.5 text-black" />
+        </button>
+      )}
     </div>
   );
 }
