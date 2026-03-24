@@ -14,6 +14,7 @@ export function CreateAccountPage() {
   const [bio, setBio] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
 
   const handleSubmit = async (e: { preventDefault(): void }) => {
     e.preventDefault();
@@ -83,13 +84,21 @@ export function CreateAccountPage() {
           </p>
         )}
 
+        <label className="block text-sm font-bold mb-1 mt-3">Upload Profile Photo</label>
+        <input
+          type="file"
+          accept="image/*"
+          className="w-full mb-3 border-2 border-black px-3 py-2 focus:outline-none focus:border-purple-500"
+          onChange={(e) => setAvatarFile(e.target.files?.[0] ?? null)}
+        />
+
         <label className="block text-sm font-bold mb-1 mt-3">Username *</label>
         <input
           value={username}
           onChange={e => setUsername(e.target.value)}
           required
           className="w-full mb-3 border-2 border-black px-3 py-2 focus:outline-none focus:border-purple-500"
-          placeholder="e.g. musiclover42"
+          placeholder="e.g. musiclover480"
         />
 
         <label className="block text-sm font-bold mb-1">Password *</label>
