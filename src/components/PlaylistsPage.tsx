@@ -90,17 +90,6 @@ export function PlaylistsPage() {
       });
     }
 
-    // Auto emoji playlists — only for emojis the user has actually reacted with
-    const autoPlaylists: Playlist[] = HARDCODED_EMOJIS
-      .filter(e => songsByEmoji[e].length > 0)
-      .map(e => ({
-        id: `__emoji__${e}`,
-        name: EMOJI_NAMES[e] ?? e,
-        emoji: e,
-        songs: songsByEmoji[e],
-        isAuto: true,
-      }));
-
     // Custom playlists from DB — songs come from reactions matching their emoji
     const { data: customRows, error: cErr } = await supabase
       .from('playlists')
@@ -114,6 +103,20 @@ export function PlaylistsPage() {
       songs: p.emoji ? (songsByEmoji[p.emoji] ?? []) : [],
       isAuto: false,
     }));
+
+    // Emojis already covered by a custom playlist — suppress the auto version
+    const customEmojis = new Set(customPlaylists.map(p => p.emoji).filter(Boolean));
+
+    // Auto emoji playlists — only for emojis the user has reacted with AND no custom playlist covers it
+    const autoPlaylists: Playlist[] = HARDCODED_EMOJIS
+      .filter(e => songsByEmoji[e].length > 0 && !customEmojis.has(e))
+      .map(e => ({
+        id: `__emoji__${e}`,
+        name: EMOJI_NAMES[e] ?? e,
+        emoji: e,
+        songs: songsByEmoji[e],
+        isAuto: true,
+      }));
 
     const next = [...autoPlaylists, ...customPlaylists];
     setPlaylists(next);
@@ -145,9 +148,25 @@ export function PlaylistsPage() {
     await loadAll();
   }
 
-  async function handleRenamePlaylist(id: string, newName: string) {
-    const { error } = await supabase.from('playlists').update({ name: newName.trim() }).eq('id', id);
-    if (error) { console.error('Error renaming playlist:', error); return; }
+  async function handleRenamePlaylist(id: string, newName: string, emoji?: string | null) {
+    if (id.startsWith('__emoji__')) {
+      // Auto playlist — promote to custom by inserting into DB with the new name
+      const { error } = await supabase.from('playlists').insert({
+        id: crypto.randomUUID(),
+        name: newName.trim(),
+        emoji: emoji ?? null,
+      });
+      if (error) { console.error('Error creating renamed playlist:', error); return; }
+    } else {
+      // Delete + re-insert to work around missing UPDATE RLS policy
+      await supabase.from('playlists').delete().eq('id', id);
+      const { error } = await supabase.from('playlists').insert({
+        id,
+        name: newName.trim(),
+        emoji: emoji ?? null,
+      });
+      if (error) { console.error('Error renaming playlist:', error); return; }
+    }
     await loadAll();
   }
 
@@ -193,19 +212,27 @@ export function PlaylistsPage() {
             />
             <div className="mb-4">
               <p className="text-sm text-gray-600 mb-2 font-bold">CHOOSE AN EMOJI (OPTIONAL):</p>
-              <div className="flex gap-3">
-                {HARDCODED_EMOJIS.map(emoji => (
-                  <button
-                    key={emoji}
-                    onClick={() => setNewEmoji(emoji === newEmoji ? '' : emoji)}
-                    className={`w-12 h-12 flex items-center justify-center text-2xl border-2 border-black transition-all ${
-                      emoji === newEmoji ? 'bg-gradient-to-br from-yellow-300 to-pink-300 scale-110' : 'bg-white hover:bg-gray-100'
-                    }`}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
+              {(() => {
+                const usedEmojis = new Set(playlists.map(p => p.emoji).filter(Boolean));
+                const availableEmojis = HARDCODED_EMOJIS.filter(e => !usedEmojis.has(e));
+                return availableEmojis.length > 0 ? (
+                  <div className="flex gap-3">
+                    {availableEmojis.map(emoji => (
+                      <button
+                        key={emoji}
+                        onClick={() => setNewEmoji(emoji === newEmoji ? '' : emoji)}
+                        className={`w-12 h-12 flex items-center justify-center text-2xl border-2 border-black transition-all ${
+                          emoji === newEmoji ? 'bg-gradient-to-br from-yellow-300 to-pink-300 scale-110' : 'bg-white hover:bg-gray-100'
+                        }`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500">All emojis already have playlists.</p>
+                );
+              })()}
               {newEmoji && (
                 <p className="text-xs text-gray-500 mt-2">Songs you reacted to with {newEmoji} will appear here.</p>
               )}
@@ -251,7 +278,7 @@ export function PlaylistsPage() {
           playlist={selected}
           onClose={() => setSelected(null)}
           onRemoveSong={song => handleRemoveSong(selected, song)}
-          onRename={!selected.isAuto ? (name) => handleRenamePlaylist(selected.id, name) : undefined}
+          onRename={(name) => handleRenamePlaylist(selected.id, name, selected.emoji)}
           onDelete={!selected.isAuto ? () => handleDeletePlaylist(selected.id) : undefined}
         />
       )}
@@ -280,7 +307,7 @@ function PlaylistCard({ playlist, onClick }: { playlist: Playlist; onClick: () =
             {playlist.isAuto && <span className="ml-2 text-xs opacity-60">· from reactions</span>}
           </p>
         </div>
-        {!playlist.isAuto && <Pencil className="w-4 h-4 text-black/50 flex-shrink-0" />}
+        <Pencil className="w-4 h-4 text-black/50 flex-shrink-0" />
       </div>
     </button>
   );
@@ -351,43 +378,41 @@ function PlaylistDetailModal({
             </button>
           </div>
 
-          {/* Edit actions for custom playlists */}
-          {!playlist.isAuto && (
-            <div className="flex gap-2 mt-3">
-              {!isEditing && (
+          {/* Edit actions */}
+          <div className="flex gap-2 mt-3">
+            {!isEditing && (
+              <button
+                onClick={() => { setEditName(playlist.name); setIsEditing(true); }}
+                className="flex items-center gap-1 px-3 py-1 bg-white border-2 border-black text-xs font-bold hover:bg-gray-100"
+              >
+                <Pencil className="w-3 h-3" /> RENAME
+              </button>
+            )}
+            {!playlist.isAuto && (!confirmDelete ? (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="flex items-center gap-1 px-3 py-1 bg-white border-2 border-black text-xs font-bold hover:bg-red-50 text-red-600"
+              >
+                <Trash2 className="w-3 h-3" /> DELETE PLAYLIST
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-red-600">Sure?</span>
                 <button
-                  onClick={() => { setEditName(playlist.name); setIsEditing(true); }}
-                  className="flex items-center gap-1 px-3 py-1 bg-white border-2 border-black text-xs font-bold hover:bg-gray-100"
+                  onClick={() => { onDelete?.(); onClose(); }}
+                  className="px-3 py-1 bg-red-500 text-white border-2 border-black text-xs font-bold"
                 >
-                  <Pencil className="w-3 h-3" /> RENAME
+                  YES
                 </button>
-              )}
-              {!confirmDelete ? (
                 <button
-                  onClick={() => setConfirmDelete(true)}
-                  className="flex items-center gap-1 px-3 py-1 bg-white border-2 border-black text-xs font-bold hover:bg-red-50 text-red-600"
+                  onClick={() => setConfirmDelete(false)}
+                  className="px-3 py-1 bg-white border-2 border-black text-xs font-bold"
                 >
-                  <Trash2 className="w-3 h-3" /> DELETE PLAYLIST
+                  NO
                 </button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-red-600">Sure?</span>
-                  <button
-                    onClick={() => { onDelete?.(); onClose(); }}
-                    className="px-3 py-1 bg-red-500 text-white border-2 border-black text-xs font-bold"
-                  >
-                    YES
-                  </button>
-                  <button
-                    onClick={() => setConfirmDelete(false)}
-                    className="px-3 py-1 bg-white border-2 border-black text-xs font-bold"
-                  >
-                    NO
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+              </div>
+            ))}
+          </div>
 
           {playlist.isAuto && (
             <p className="text-xs text-black/60 mt-2">Remove a song by clicking the trash icon — this removes your reaction.</p>

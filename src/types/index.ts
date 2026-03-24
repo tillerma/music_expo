@@ -47,6 +47,7 @@ export interface SongPost {
   artist: string;
   caption: string;
   date: string;
+  createdAt?: string;
   reactions: Reaction[];
   comments: Comment[];
 }

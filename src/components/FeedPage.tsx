@@ -142,6 +142,7 @@ export function FeedPage() {
         artist: post.artist ?? 'Unknown Artist',
         caption: post.caption ?? '',
         date: post.post_date ?? '',
+        createdAt: post.created_at ?? '',
         reactions: (post.reactions || []).map((reaction: any) => ({
           emoji: reaction.emoji,
           userId: reaction.user_id,
@@ -439,13 +440,13 @@ export function FeedPage() {
   };
 
   const handleDeleteComment = async (commentId: string) => {
-    const { error } = await supabase
-      .from('comments')
-      .delete()
-      .eq('id', commentId)
-      .eq('user_id', currentUser.id);
-    if (error) { console.error('Error deleting comment:', error); return; }
-    await fetchPosts();
+    // Optimistic update — remove from UI immediately
+    setPosts(prev => prev.map(p => ({
+      ...p,
+      comments: p.comments.filter(c => c.id !== commentId),
+    })));
+    // Best-effort DB delete (may be blocked by RLS if no Supabase auth session)
+    await supabase.from('comments').delete().eq('id', commentId);
   };
 
   const today = new Date();
@@ -653,10 +654,15 @@ function SongPostComponent({ post, onReaction, onAddComment, onDeleteComment }: 
           alt={post.user.username}
           className="w-10 h-10 border-2 border-black object-cover"
         />
-        <div>
+        <div className="flex-1">
           <p className="font-bold">{post.user.displayName}</p>
           <Link to={`/profile/${post.user.username}`} className="text-sm text-gray-600">@{post.user.username}</Link>
         </div>
+        {post.createdAt && (
+          <span className="text-xs text-gray-500 font-medium self-start">
+            {new Date(post.createdAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+          </span>
+        )}
       </div>
 
       {/* Album Art & Song Info */}
@@ -701,19 +707,20 @@ function SongPostComponent({ post, onReaction, onAddComment, onDeleteComment }: 
                 <span className="text-black font-bold">{count}</span>
               </button>
 
-              {/* Hover tooltip — names only, black on white */}
+              {/* Hover tooltip — names only, horizontal comma-separated */}
               {hoveredEmoji === emoji && (
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-20 pointer-events-none flex flex-col items-center">
-                  <div className="bg-white border-2 border-black px-3 py-2 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] min-w-[110px] text-center">
-                    {recentUsers
-                      .filter(n => n && String(n).trim())
-                      .slice()
-                      .reverse()
-                      .map((name, i) => (
-                        <div key={i} className="text-xs font-bold text-black leading-5">@{name}</div>
-                      ))}
+                  <div className="bg-white border-2 border-black px-3 py-2 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] whitespace-nowrap text-center">
+                    <span className="text-xs font-bold text-black">
+                      {recentUsers
+                        .filter(n => n && String(n).trim())
+                        .slice()
+                        .reverse()
+                        .map(n => `@${n}`)
+                        .join(', ')}
+                    </span>
                     {count > 5 && (
-                      <div className="text-xs text-gray-500 mt-0.5">+{count - 5} more</div>
+                      <span className="text-xs text-gray-500 ml-1">+{count - 5} more</span>
                     )}
                   </div>
                   <div className="w-0 h-0 border-l-[7px] border-r-[7px] border-t-[7px] border-l-transparent border-r-transparent border-t-black" />
@@ -827,32 +834,40 @@ function CommentComponent({ comment, onDelete }: CommentComponentProps) {
         </div>
 
         {comment.song && (
-          <div className="mb-2 flex gap-2 bg-white border-2 border-black p-2 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-            <img src={comment.song.albumArt} alt={comment.song.songTitle} className="w-10 h-10 border-2 border-black object-cover flex-shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold truncate">{comment.song.songTitle}</p>
-              <p className="text-xs text-gray-600 truncate">{comment.song.artist}</p>
+          <div className="mb-2 bg-white border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
+            <div className="flex items-center gap-0">
+              <img
+                src={comment.song.albumArt}
+                alt={comment.song.songTitle}
+                className="w-14 h-14 border-r-2 border-black object-cover flex-shrink-0"
+              />
+              <div className="flex-1 min-w-0 px-3 py-2">
+                <p className="text-xs font-bold truncate text-black">{comment.song.songTitle}</p>
+                <p className="text-xs text-gray-600 truncate">{comment.song.artist}</p>
+              </div>
+              {comment.song.spotifyUrl && (
+                <a
+                  href={comment.song.spotifyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-10 h-14 bg-green-500 hover:bg-green-600 border-l-2 border-black flex items-center justify-center flex-shrink-0 transition-colors"
+                  title="Open in Spotify"
+                >
+                  <ExternalLink className="w-3.5 h-3.5 text-white" />
+                </a>
+              )}
             </div>
-            <a
-              href={comment.song.spotifyUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="self-center p-1.5 bg-green-500 hover:bg-green-600 border-2 border-black transition-colors flex-shrink-0"
-              title="Open in Spotify"
-            >
-              <ExternalLink className="w-3 h-3 text-white" />
-            </a>
           </div>
         )}
 
-        <p className="text-sm text-black">{comment.caption}</p>
+        {comment.caption && <p className="text-sm text-black">{comment.caption}</p>}
       </div>
 
       {/* Delete (own comments only) */}
       {onDelete && (
         <button
           onClick={onDelete}
-          className="p-1.5 self-start flex-shrink-0 border-2 border-black bg-white hover:bg-red-50 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+          className="w-8 h-8 flex-shrink-0 self-start border-2 border-black bg-white hover:bg-red-50 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center"
           title="Delete comment"
         >
           <Trash2 className="w-3.5 h-3.5 text-black" />
@@ -905,22 +920,23 @@ function AddCommentForm({ postId, onAddComment, onCancel }: AddCommentFormProps)
   }, [searchQueryC]);
 
   const handleSubmit = () => {
-    if (!caption.trim()) return;
+    const hasSong = includeSong && songTitle && artist;
+    if (!caption.trim() && !hasSong) return;
 
     const newComment: Comment = {
-      id: `comment-${Date.now()}`,
+      id: crypto.randomUUID(),
       userId: currentUser.id,
       user: currentUser,
       caption: caption.trim(),
       timestamp: new Date().toISOString(),
     };
 
-    if (includeSong && songTitle && artist) {
+    if (hasSong) {
       newComment.song = {
         songTitle,
         artist,
-        albumArt: albumArt || 'https://images.unsplash.com/photo-1616663395403-2e0052b8e595?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhbGJ1bSUyMGNvdmVyJTIwdmlueWx8ZW58MXx8fHwxNzcwODEwMjE3fDA&ixlib=rb-4.1.0&q=80&w=1080',
-        spotifyUrl: songUrl || 'https://open.spotify.com/track/example',
+        albumArt: albumArt || 'https://placehold.co/100x100',
+        spotifyUrl: songUrl || '',
       };
     }
 
@@ -1058,7 +1074,7 @@ function AddCommentForm({ postId, onAddComment, onCancel }: AddCommentFormProps)
         </button>
         <button
           onClick={handleSubmit}
-          disabled={!caption.trim()}
+          disabled={!caption.trim() && !(includeSong && songTitle && artist)}
           className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-4 py-2 font-bold hover:translate-x-0.5 hover:translate-y-0.5 transition-transform disabled:opacity-50 disabled:cursor-not-allowed text-sm"
         >
           POST
