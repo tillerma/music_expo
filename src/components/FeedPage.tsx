@@ -457,7 +457,7 @@ export function FeedPage() {
             <AuthButton />
             <div>
               <h1 className="text-xl font-bold">Today's Songs</h1>
-              <p className="text-sm text-gray-600">February 12, 2026</p>
+              <p className="text-sm text-gray-600">{formattedDate}</p>
             </div>
           </div>
           <button
