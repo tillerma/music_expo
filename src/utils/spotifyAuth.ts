@@ -83,10 +83,15 @@ export async function spotifyFetch(
   options: RequestInit = {},
   retries = 3,
 ): Promise<Response> {
+  // getValidToken() reuses the cached token until it expires (~1 hour).
+  // Do NOT call fetchClientCredentialsToken() directly here — that would
+  // hit Spotify's token endpoint on every API call and trigger throttling.
   const token = await getValidToken();
 
   const response = await fetch(url, {
+    ...options,
     headers: {
+      ...options.headers,
       Authorization: `Bearer ${token}`,
     },
   });
