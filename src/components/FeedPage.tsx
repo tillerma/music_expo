@@ -654,7 +654,8 @@ function SongPostComponent({ post, emojiSet, onReaction, onAddComment }: SongPos
         />
         <div>
           <p className="font-bold">{post.user.displayName}</p>
-          <p className="text-sm text-gray-600">@{post.user.username}</p>
+          <Link to={`/profile/${post.user.username}`} className="text-sm text-gray-600">@{post.user.username}</Link>
+          {/* <p className="text-sm text-gray-600">@{post.user.username}</p> */}
         </div>
       </div>
 
@@ -784,7 +785,8 @@ function CommentComponent({ comment }: CommentComponentProps) {
           className="w-12 h-12 border-2 border-black object-cover"
         />
         <p className="text-xs font-bold text-center">{comment.user.displayName}</p>
-        <p className="text-xs text-gray-600">@{comment.user.username}</p>
+        <Link to={`/profile/${comment.user.username}`} className="text-sm text-gray-600">@{comment.user.username}</Link>
+        {/* <p className="text-xs text-gray-600">@{comment.user.username}</p> */}
       </div>
 
       {/* Comment Content */}
