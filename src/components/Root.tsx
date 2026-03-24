@@ -1,5 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router';
 import { Home, Compass, Music, User } from 'lucide-react';
+import { currentUser } from '../auth/currentUserInfo';
 
 export function Root() {
   const location = useLocation();
@@ -8,7 +9,7 @@ export function Root() {
     { path: '/', icon: Home, label: 'Feed' },
     { path: '/explore', icon: Compass, label: 'Music Map' },
     { path: '/playlists', icon: Music, label: 'Playlists' },
-    { path: '/profile/musiclover', icon: User, label: 'Profile' },
+    { path: `/profile/${currentUser.username}`, icon: User, label: 'Profile' },
   ];
 
   const isActive = (path: string) => {
