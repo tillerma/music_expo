@@ -1,19 +1,80 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { currentUser } from '../auth/currentUserInfo';
 import { /*currentUser, */generateCalendarPosts, initialFollowRequests } from '../data/mockData';
 import { SongPost, FollowRequest } from '../types';
 import { ChevronLeft, ChevronRight, Bell, X, Check } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 export function ProfilePage() {
   const [selectedPost, setSelectedPost] = useState<SongPost | null>(null);
-  const [currentMonth, setCurrentMonth] = useState(new Date('2026-02-01'));
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [showNotifications, setShowNotifications] = useState(false);
   const [followRequests, setFollowRequests] = useState<FollowRequest[]>(initialFollowRequests);
-  const calendarPosts = generateCalendarPosts();
+  // const calendarPosts = generateCalendarPosts();
+  const [calendarPosts, setCalendarPosts] = useState<SongPost[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
 
   const getPostForDate = (dateStr: string) => {
     return calendarPosts.find(p => p.date === dateStr);
   };
+
+  useEffect(() => {
+    
+    async function fetchCalendarPosts() {
+      if (!currentUser?.id) return;
+
+      const startOfMonth = new Date(
+        currentMonth.getFullYear(),
+        currentMonth.getMonth(),
+        1
+      );
+      const startOfNextMonth = new Date(
+        currentMonth.getFullYear(),
+        currentMonth.getMonth() + 1,
+        1
+      );
+
+      const startOfMonthStr = startOfMonth.toISOString().split("T")[0];
+      const startOfNextMonthStr = startOfNextMonth.toISOString().split("T")[0];
+
+      const { data, error } = await supabase
+        .from("posts")
+        .select(`
+          id,
+          user_id,
+          caption,
+          post_date,
+          created_at,
+          song_title,
+          artist,
+          album_art,
+          spotify_url
+        `)
+        .eq("user_id", currentUser.id)
+        .gte("post_date", startOfMonthStr)
+        .lt("post_date", startOfNextMonthStr)
+        .order("post_date", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching calendar posts:", error);
+        return;
+      }
+
+      const mappedPosts = (data ?? []).map((post) => ({
+        id: post.id,
+        date: post.post_date,
+        caption: post.caption ?? "",
+        songTitle: post.song_title ?? "",
+        artist: post.artist ?? "",
+        albumArt: post.album_art ?? "",
+        spotifyUrl: post.spotify_url ?? "",
+      }));
+
+      setCalendarPosts(mappedPosts);
+    }
+
+    fetchCalendarPosts();
+  }, [currentUser?.id, currentMonth]);
 
   const generateCalendarDays = () => {
     const year = currentMonth.getFullYear();
@@ -209,7 +270,7 @@ export function ProfilePage() {
             
             <p className="text-black mb-4">{selectedPost.caption}</p>
             
-            {selectedPost.reactions.length > 0 && (
+            {/* {selectedPost.reactions.length > 0 && (
               <div className="mb-4">
                 <p className="text-xs text-gray-600 mb-2 font-bold">REACTIONS:</p>
                 <div className="flex gap-2 flex-wrap">
@@ -223,7 +284,7 @@ export function ProfilePage() {
                   ))}
                 </div>
               </div>
-            )}
+            )} */}
             
             <button
               onClick={() => setSelectedPost(null)}
