@@ -167,12 +167,12 @@ export function MusicMapPageV2() {
     setTransform({ ...t });
   }, []);
 
-  // ── Drag ───────────────────────────────────────────────────────────────────
-  const isDown       = useRef(false);
-  const dragStart    = useRef({ x: 0, y: 0 });
-  const tAtDragStart = useRef<Transform>({ x: 0, y: 0, scale: 1 });
-  const didDrag      = useRef(false);
-  const lastPinch    = useRef<number | null>(null);
+  // ── Pointer tracking (mouse + touch via Pointer Events API) ───────────────
+  const activePointers = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const dragStart      = useRef({ x: 0, y: 0 });
+  const tAtDragStart   = useRef<Transform>({ x: 0, y: 0, scale: 1 });
+  const didDrag        = useRef(false);
+  const lastPinchDist  = useRef<number | null>(null);
 
   // ── UI state ───────────────────────────────────────────────────────────────
   const [containerSize, setContainerSize] = useState({ w: 800, h: 600 });
@@ -274,67 +274,7 @@ export function MusicMapPageV2() {
     return () => window.removeEventListener('keydown', onKey);
   }, [containerSize, syncTransform]);
 
-  // ── Touch pinch/pan — all native, non-passive so preventDefault works on iOS ─
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const onTouchStart = (e: TouchEvent) => {
-      // Non-passive listener tells iOS not to apply momentum scroll.
-      // Do NOT call preventDefault() here — that would suppress tap→click on dots.
-      if (e.touches.length === 2) {
-        lastPinch.current = Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY,
-        );
-        isDown.current = false;
-      } else {
-        lastPinch.current = null;
-        isDown.current = true;
-        didDrag.current = false;
-        dragStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        tAtDragStart.current = { ...transformRef.current };
-      }
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      e.preventDefault(); // blocks iOS scroll/rubber-band now that start was non-passive
-      if (e.touches.length === 2 && lastPinch.current !== null) {
-        const dist = Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY,
-        );
-        const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-        const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-        const rect = el.getBoundingClientRect();
-        const fx = midX - rect.left, fy = midY - rect.top;
-        const t = transformRef.current;
-        const ns = clampZoom(t.scale * dist / lastPinch.current);
-        const r = ns / t.scale;
-        syncTransform({ scale: ns, x: fx - r * (fx - t.x), y: fy - r * (fy - t.y) });
-        lastPinch.current = dist;
-      } else if (e.touches.length === 1 && isDown.current) {
-        const ddx = e.touches[0].clientX - dragStart.current.x;
-        const ddy = e.touches[0].clientY - dragStart.current.y;
-        if (!didDrag.current && Math.hypot(ddx, ddy) < DRAG_THRESH) return;
-        didDrag.current = true;
-        syncTransform({ ...tAtDragStart.current, x: tAtDragStart.current.x + ddx, y: tAtDragStart.current.y + ddy });
-      }
-    };
-
-    const onTouchEnd = () => { isDown.current = false; lastPinch.current = null; };
-
-    el.addEventListener('touchstart',  onTouchStart,  { passive: false });
-    el.addEventListener('touchmove',   onTouchMove,   { passive: false });
-    el.addEventListener('touchend',    onTouchEnd);
-    el.addEventListener('touchcancel', onTouchEnd);
-    return () => {
-      el.removeEventListener('touchstart',  onTouchStart);
-      el.removeEventListener('touchmove',   onTouchMove);
-      el.removeEventListener('touchend',    onTouchEnd);
-      el.removeEventListener('touchcancel', onTouchEnd);
-    };
-  }, [syncTransform]);
+  // (touch handled via Pointer Events below)
 
   // ── Fit all ────────────────────────────────────────────────────────────────
   const fitAllTransform = useCallback((padding = 0.14): Transform => {
@@ -344,7 +284,9 @@ export function MusicMapPageV2() {
     const minX = Math.min(...xs), maxX = Math.max(...xs);
     const minY = Math.min(...ys), maxY = Math.max(...ys);
     const dataW = maxX - minX || 1, dataH = maxY - minY || 1;
-    const { w, h } = containerSize;
+    const rect = containerRef.current?.getBoundingClientRect();
+    const w = rect?.width ?? containerSize.w;
+    const h = rect?.height ?? containerSize.h;
     // scale = pixels per data unit; no arbitrary cap, just clamp to zoom limits
     const scale = clampZoom(Math.min(
       (w * (1 - 2 * padding)) / dataW,
@@ -374,23 +316,56 @@ export function MusicMapPageV2() {
 
   useEffect(() => { hasFitted.current = false; }, [viewMode]);
 
-  // ── Mouse ──────────────────────────────────────────────────────────────────
-  const onMouseDown  = (e: React.MouseEvent) => {
-    if (e.button !== 0) return;
-    isDown.current = true; didDrag.current = false;
-    dragStart.current = { x: e.clientX, y: e.clientY };
-    tAtDragStart.current = { ...transformRef.current };
-    setIsCursorGrab(true);
+  // ── Pointer events — handles mouse + touch + stylus uniformly ─────────────
+  // touch-action:none on the canvas tells the browser to hand all touch input
+  // here instead of scrolling/zooming the page — works on iOS Safari & Android.
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (activePointers.current.size === 1) {
+      didDrag.current = false;
+      dragStart.current = { x: e.clientX, y: e.clientY };
+      tAtDragStart.current = { ...transformRef.current };
+      lastPinchDist.current = null;
+      setIsCursorGrab(true);
+    } else if (activePointers.current.size === 2) {
+      const pts = [...activePointers.current.values()];
+      lastPinchDist.current = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+    }
   };
-  const onMouseMove  = (e: React.MouseEvent) => {
-    if (!isDown.current) return;
-    const dx = e.clientX - dragStart.current.x, dy = e.clientY - dragStart.current.y;
-    if (!didDrag.current && Math.hypot(dx, dy) < DRAG_THRESH) return;
-    didDrag.current = true;
-    syncTransform({ ...tAtDragStart.current, x: tAtDragStart.current.x + dx, y: tAtDragStart.current.y + dy });
+
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!activePointers.current.has(e.pointerId)) return;
+    activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (activePointers.current.size === 2 && lastPinchDist.current !== null) {
+      const pts = [...activePointers.current.values()];
+      const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+      const midX = (pts[0].x + pts[1].x) / 2;
+      const midY = (pts[0].y + pts[1].y) / 2;
+      const rect = containerRef.current!.getBoundingClientRect();
+      const fx = midX - rect.left, fy = midY - rect.top;
+      const t = transformRef.current;
+      const ns = clampZoom(t.scale * dist / lastPinchDist.current);
+      const r = ns / t.scale;
+      syncTransform({ scale: ns, x: fx - r * (fx - t.x), y: fy - r * (fy - t.y) });
+      lastPinchDist.current = dist;
+    } else if (activePointers.current.size === 1) {
+      const dx = e.clientX - dragStart.current.x;
+      const dy = e.clientY - dragStart.current.y;
+      if (!didDrag.current && Math.hypot(dx, dy) < DRAG_THRESH) return;
+      didDrag.current = true;
+      syncTransform({ ...tAtDragStart.current, x: tAtDragStart.current.x + dx, y: tAtDragStart.current.y + dy });
+    }
   };
-  const onMouseUp    = () => { isDown.current = false; setIsCursorGrab(false); };
-  const onMouseLeave = () => { isDown.current = false; setIsCursorGrab(false); };
+
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    activePointers.current.delete(e.pointerId);
+    if (activePointers.current.size < 2) lastPinchDist.current = null;
+    if (activePointers.current.size === 0) setIsCursorGrab(false);
+  };
 
   const handleDotClick  = (e: React.MouseEvent, pt: MapPoint) => { e.stopPropagation(); if (!didDrag.current) { setSelectedPoint(pt); setHoveredPoint(null); } };
   const handleDotEnter  = (e: React.MouseEvent, pt: MapPoint) => { setHoveredPoint(pt); const r = containerRef.current!.getBoundingClientRect(); setTooltipPos({ x: e.clientX - r.left, y: e.clientY - r.top }); };
@@ -504,10 +479,10 @@ export function MusicMapPageV2() {
           ref={containerRef}
           className="absolute inset-0 bg-gradient-to-br from-yellow-50 via-pink-50 to-blue-50"
           style={{ cursor: isCursorGrab ? 'grabbing' : 'grab', touchAction: 'none' }}
-          onMouseDown={onMouseDown}
-          onMouseMove={onMouseMove}
-          onMouseUp={onMouseUp}
-          onMouseLeave={onMouseLeave}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
         >
           {/* Grid — fixed 80px screen-space grid, shifts with pan */}
           <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity: 0.12 }}>
