@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router';
+import { UserAvatar } from './UserAvatar';
 import { isLoggedIn, logout } from '../utils/spotifyAuth';
 import { currentUser } from '../auth/currentUserInfo';
 // import { currentUser } from '../data/mockData';
@@ -128,7 +129,7 @@ export function FeedPage() {
           username: post.profiles?.username ?? post.user_id,
           displayName: post.profiles?.display_name ?? post.user_id,
           bio: post.profiles?.bio ?? '',
-          avatarUrl: post.profiles?.avatar_url ?? 'https://placehold.co/100x100',
+          avatarUrl: post.profiles?.avatar_url ?? '',
           followers: post.profiles?.followers ?? 0,
           following: post.profiles?.following ?? 0,
         },
@@ -152,7 +153,7 @@ export function FeedPage() {
             username: comment.profiles?.username ?? comment.user_id,
             displayName: comment.profiles?.display_name ?? comment.profiles?.username ?? comment.user_id,
             bio: '',
-            avatarUrl: comment.profiles?.avatar_url ?? 'https://placehold.co/100x100',
+            avatarUrl: comment.profiles?.avatar_url ?? '',
             followers: 0,
             following: 0,
           },
@@ -719,10 +720,12 @@ function SongPostComponent({ post, onReaction, onAddComment, onDeleteComment }: 
     <div className="px-4 py-6 bg-white">
       {/* User Info */}
       <div className="flex items-center gap-3 mb-4">
-        <img
-          src={post.user.avatarUrl}
-          alt={post.user.username}
-          className="w-10 h-10 border-2 border-black object-cover"
+        <UserAvatar
+          avatarUrl={post.user.avatarUrl}
+          displayName={post.user.displayName}
+          username={post.user.username}
+          size={40}
+          className="border-2 border-black"
         />
         <div className="flex-1">
           <p className="font-bold">{post.user.displayName}</p>
@@ -904,10 +907,12 @@ function CommentComponent({ comment, onDelete }: CommentComponentProps) {
   return (
     <div className="flex gap-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
       {/* Avatar */}
-      <img
-        src={comment.user.avatarUrl}
-        alt={comment.user.username}
-        className="w-8 h-8 border-2 border-black object-cover flex-shrink-0 mt-0.5"
+      <UserAvatar
+        avatarUrl={comment.user.avatarUrl}
+        displayName={comment.user.displayName}
+        username={comment.user.username}
+        size={32}
+        className="border-2 border-black flex-shrink-0 mt-0.5"
       />
 
       {/* Body */}
