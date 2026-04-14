@@ -3,10 +3,12 @@ import { UserAvatar } from './UserAvatar';
 import { currentUser } from '../auth/currentUserInfo';
 import { /*currentUser, */generateCalendarPosts } from '../data/mockData';
 import { SongPost } from '../types';
-import { ChevronLeft, ChevronRight, Pencil, Menu, X, Search, Bell } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pencil, Menu, X, Search, Bell, Plus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useParams, Link } from 'react-router-dom';
 import { toLocalDateString, formatLocalDateFromYMD } from '../utils/date';
+import { searchTracks } from '../api/spotify';
+import { getTrackTopTags, LastFmTag } from '../api/lastfm';
 
 // Vivid rainbow colours that cycle across the user list
 const RAINBOW = [
@@ -354,6 +356,7 @@ export function ProfilePage() {
   // const calendarPosts = generateCalendarPosts();
   const [calendarPosts, setCalendarPosts] = useState<SongPost[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
   const { username } = useParams();
   const [profileUser, setProfileUser] = useState(null);
   const [showEditProfile, setShowEditProfile] = useState(false);
@@ -362,9 +365,21 @@ export function ProfilePage() {
   const [editBio, setEditBio] = useState('');
   // const [editAvatarUrl, setEditAvatarUrl] = useState('');
   const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
-  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState(''); 
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState('');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const isOwnProfile = username === currentUser.username;
+
+  // Log entry modal state
+  const [logModalDate, setLogModalDate] = useState<string | null>(null);
+  const [logSearchQuery, setLogSearchQuery] = useState('');
+  const [logSearchResults, setLogSearchResults] = useState<any[]>([]);
+  const [logIsSearching, setLogIsSearching] = useState(false);
+  const [logSelectedTrack, setLogSelectedTrack] = useState<any | null>(null);
+  const [logCaption, setLogCaption] = useState('');
+  const [logIsPosting, setLogIsPosting] = useState(false);
+  const [logPendingTags, setLogPendingTags] = useState<LastFmTag[]>([]);
+  const [logFeaturesStatus, setLogFeaturesStatus] = useState<'idle' | 'loading' | 'ok' | 'failed'>('idle');
+  const logSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   console.log(username);
 
@@ -442,7 +457,104 @@ export function ProfilePage() {
     }
 
     fetchData();
-  }, [username, currentMonth]);
+  }, [username, currentMonth, calendarRefreshKey]);
+
+  // ── Log entry helpers ──────────────────────────────────────────────────────
+
+  async function getOrCreateSong({
+    spotifyUrl, songTitle, artist, albumArt, tags,
+  }: { spotifyUrl: string; songTitle: string; artist: string; albumArt: string; tags?: LastFmTag[] }) {
+    const trimmedUrl = spotifyUrl.trim();
+    const { data: existingSong, error } = await supabase
+      .from('songs').select('id, tags').eq('spotify_url', trimmedUrl).maybeSingle();
+    if (error) throw error;
+    if (existingSong?.id) {
+      if (!existingSong.tags && tags && tags.length > 0) {
+        await supabase.from('songs').update({ tags }).eq('id', existingSong.id);
+      }
+      return existingSong.id;
+    }
+    const newSongId = crypto.randomUUID();
+    const { error: insertError } = await supabase.from('songs').insert({
+      id: newSongId, spotify_url: trimmedUrl, song_title: songTitle,
+      artist, album_art: albumArt, tags: tags && tags.length > 0 ? tags : null,
+    });
+    if (insertError) throw insertError;
+    return newSongId;
+  }
+
+  function handleLogSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const query = e.target.value;
+    setLogSearchQuery(query);
+    setLogSelectedTrack(null);
+    if (logSearchDebounceRef.current) clearTimeout(logSearchDebounceRef.current);
+    if (!query.trim()) { setLogSearchResults([]); return; }
+    logSearchDebounceRef.current = setTimeout(async () => {
+      setLogIsSearching(true);
+      try {
+        const result = await searchTracks(query);
+        setLogSearchResults(result.tracks.items.slice(0, 8));
+      } catch (err) {
+        console.error('Log search failed:', err);
+      } finally {
+        setLogIsSearching(false);
+      }
+    }, 400);
+  }
+
+  function handleLogSelectTrack(track: any) {
+    setLogSelectedTrack(track);
+    setLogSearchQuery(`${track.name} — ${track.artists[0]?.name ?? ''}`);
+    setLogSearchResults([]);
+    setLogFeaturesStatus('loading');
+    setLogPendingTags([]);
+    getTrackTopTags(track.artists[0]?.name ?? '', track.name).then(tags => {
+      setLogPendingTags(tags);
+      setLogFeaturesStatus(tags.length > 0 ? 'ok' : 'failed');
+    }).catch(() => setLogFeaturesStatus('failed'));
+  }
+
+  function handleCloseLogModal() {
+    setLogModalDate(null);
+    setLogSearchQuery('');
+    setLogSearchResults([]);
+    setLogSelectedTrack(null);
+    setLogPendingTags([]);
+    setLogFeaturesStatus('idle');
+    setLogCaption('');
+  }
+
+  async function handleSaveLogEntry() {
+    if (!logSelectedTrack || !logCaption.trim() || !logModalDate) return;
+    setLogIsPosting(true);
+    try {
+      const spotifyUrl = logSelectedTrack.external_urls.spotify;
+      const songTitle = logSelectedTrack.name;
+      const artist = logSelectedTrack.artists.map((a: { name: string }) => a.name).join(', ');
+      const albumArt = logSelectedTrack.album.images[0]?.url ?? 'https://placehold.co/200x200';
+      const songId = await getOrCreateSong({ spotifyUrl, songTitle, artist, albumArt, tags: logPendingTags });
+      const { error } = await supabase.from('posts').insert({
+        id: crypto.randomUUID(),
+        user_id: currentUser.id,
+        song_id: songId,
+        spotify_url: spotifyUrl,
+        song_title: songTitle,
+        artist,
+        album_art: albumArt,
+        caption: logCaption.trim(),
+        post_date: logModalDate,
+        created_at: new Date().toISOString(),
+        is_log_entry: true,
+      });
+      if (error) { console.error('Error saving log entry:', error); return; }
+      handleCloseLogModal();
+      setCalendarRefreshKey(k => k + 1);
+    } catch (err) {
+      console.error('handleSaveLogEntry failed:', err);
+    } finally {
+      setLogIsPosting(false);
+    }
+  }
 
   const generateCalendarDays = () => {
     const year = currentMonth.getFullYear();
@@ -674,17 +786,23 @@ export function ProfilePage() {
             }
             
             const { day, post } = item;
-            // const isToday = item.dateStr === '2026-02-12';
             const isToday = item.dateStr === toLocalDateString();
-            
+            const isPastDay = item.dateStr < toLocalDateString();
+            const isLoggable = isOwnProfile && isPastDay && !post;
+
             return (
               <button
                 key={item.dateStr}
-                onClick={() => post && setSelectedPost(post)}
+                onClick={() => {
+                  if (post) setSelectedPost(post);
+                  else if (isLoggable) setLogModalDate(item.dateStr);
+                }}
                 className={`aspect-square overflow-hidden border-2 border-black transition-all ${
                   post
                     ? 'hover:scale-105 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]'
-                    : 'border-dashed border-gray-400'
+                    : isLoggable
+                    ? 'border-dashed border-purple-300 hover:border-purple-500 hover:bg-purple-50 cursor-pointer'
+                    : 'border-dashed border-gray-300 cursor-default'
                 } ${isToday ? 'ring-4 ring-yellow-400' : ''}`}
               >
                 {post ? (
@@ -693,8 +811,13 @@ export function ProfilePage() {
                     alt={post.songTitle}
                     className="w-full h-full object-cover"
                   />
+                ) : isLoggable ? (
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-0.5">
+                    <Plus className="w-3 h-3 text-purple-400" />
+                    <span className="text-[10px] text-purple-400 font-bold">{day}</span>
+                  </div>
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center text-xs text-gray-400 font-bold">
+                  <div className="w-full h-full flex items-center justify-center text-xs text-gray-300 font-bold">
                     {day}
                   </div>
                 )}
@@ -703,6 +826,80 @@ export function ProfilePage() {
           })}
         </div>
       </div>
+
+      {/* Log Entry Modal */}
+      {logModalDate && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={handleCloseLogModal}>
+          <div className="bg-white border-4 border-black p-6 w-full max-w-md shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]" onClick={e => e.stopPropagation()}>
+            <h2 className="text-xl font-bold mb-1">LOG A SONG</h2>
+            <p className="text-xs text-gray-500 mb-4 font-medium">{formatLocalDateFromYMD(logModalDate).toUpperCase()} · PRIVATE MEMORY</p>
+
+            <div className="mb-3">
+              <input
+                type="search"
+                placeholder="Search for a song"
+                value={logSearchQuery}
+                onChange={handleLogSearchChange}
+                className="w-full bg-yellow-100 border-2 border-black px-4 py-2 focus:outline-none focus:border-purple-500"
+              />
+              {logIsSearching && <p className="mt-2 text-sm text-gray-500">Searching…</p>}
+              {logSearchResults.length > 0 && (
+                <ul className="mt-2 max-h-48 overflow-auto bg-white border-2 border-black">
+                  {logSearchResults.map((t: any) => (
+                    <li
+                      key={t.id}
+                      className="flex items-center gap-3 p-2 hover:bg-gray-100 cursor-pointer"
+                      onClick={() => handleLogSelectTrack(t)}
+                    >
+                      <img src={t.album.images?.[0]?.url} alt={t.name} className="w-12 h-12 object-cover border-2 border-black" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold truncate">{t.name}</p>
+                        <p className="text-xs text-gray-600 truncate">{t.artists.map((a: any) => a.name).join(', ')}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {logSelectedTrack && (
+              <div className="mb-3 p-2 bg-gradient-to-r from-green-100 to-blue-100 border-2 border-black flex items-center gap-3">
+                <img src={logSelectedTrack.album.images?.[0]?.url} alt={logSelectedTrack.name} className="w-12 h-12 object-cover border-2 border-black" />
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold truncate">{logSelectedTrack.name}</p>
+                  <p className="text-xs text-gray-600 truncate">{logSelectedTrack.artists.map((a: any) => a.name).join(', ')}</p>
+                  <p className="text-xs mt-0.5">
+                    {logFeaturesStatus === 'loading' && <span className="text-gray-400">fetching tags…</span>}
+                    {logFeaturesStatus === 'ok' && <span className="text-green-600 font-bold">✓ tags ready</span>}
+                    {logFeaturesStatus === 'failed' && <span className="text-gray-400">no tags found</span>}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <textarea
+              placeholder="What do you remember about this day? (max 140 chars)"
+              maxLength={140}
+              value={logCaption}
+              onChange={e => setLogCaption(e.target.value)}
+              className="w-full bg-yellow-100 border-2 border-black px-4 py-2 mb-4 focus:outline-none focus:border-purple-500 resize-none h-24"
+            />
+
+            <div className="flex gap-2">
+              <button onClick={handleCloseLogModal} className="flex-1 bg-gray-200 border-2 border-black px-4 py-2 font-bold hover:bg-gray-300 transition-colors">
+                CANCEL
+              </button>
+              <button
+                onClick={handleSaveLogEntry}
+                disabled={logIsPosting || !logSelectedTrack || !logCaption.trim()}
+                className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-4 py-2 font-bold hover:translate-x-0.5 hover:translate-y-0.5 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {logIsPosting ? 'SAVING...' : 'SAVE TO LOG'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Selected Post Modal */}
       {selectedPost && (

@@ -335,6 +335,15 @@ export function MusicMapPageV2() {
 
   const resetView = useCallback(() => syncTransform(fitAllTransform()), [syncTransform, fitAllTransform]);
 
+  const centerOnUser = useCallback(() => {
+    const myPoint = points.find(p => p.user.id === currentUser.id);
+    if (!myPoint) { resetView(); return; }
+    const { x, y } = getCoords(myPoint);
+    // Keep current zoom if already zoomed in, otherwise use a comfortable level
+    const scale = clampZoom(Math.max(transformRef.current.scale, 80));
+    syncTransform({ scale, x: -x * scale, y: y * scale });
+  }, [points, getCoords, syncTransform, resetView]);
+
   const zoomAround = useCallback((fx: number, fy: number, factor: number) => {
     const t = transformRef.current;
     const ns = clampZoom(t.scale * factor);
@@ -666,7 +675,7 @@ export function MusicMapPageV2() {
             <ZoomIn className="w-4 h-4" />
           </button>
           <button
-            onClick={resetView}
+            onClick={centerOnUser}
             className="w-10 h-10 flex items-center justify-center bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] hover:bg-gray-100 pointer-events-auto transition-transform"
           >
             <Crosshair className="w-4 h-4" />
@@ -694,15 +703,7 @@ export function MusicMapPageV2() {
             style={{ maxHeight: '90dvh' }}
             onClick={e => e.stopPropagation()}
           >
-            {/* X close button */}
-            <button
-              onClick={() => setSelectedPoint(null)}
-              className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center bg-gray-100 border-2 border-black font-bold text-sm hover:bg-gray-200 z-10"
-            >
-              ✕
-            </button>
-
-            {/* User row */}
+            {/* User row + close button */}
             <div className="flex items-center gap-3 mb-4">
               <Link to={`/profile/${selectedPoint.user.username}`} onClick={() => setSelectedPoint(null)}>
                 <UserAvatar
@@ -714,7 +715,7 @@ export function MusicMapPageV2() {
                 />
               </Link>
               <div className="flex-1 min-w-0">
-                <p className="font-bold leading-tight">{selectedPoint.user.displayName}</p>
+                <p className="font-bold leading-tight truncate">{selectedPoint.user.displayName}</p>
                 <Link
                   to={`/profile/${selectedPoint.user.username}`}
                   className="text-sm text-gray-600 hover:underline font-medium"
@@ -723,6 +724,12 @@ export function MusicMapPageV2() {
                   @{selectedPoint.user.username}
                 </Link>
               </div>
+              <button
+                onClick={() => setSelectedPoint(null)}
+                className="flex-shrink-0 w-8 h-8 flex items-center justify-center bg-gray-100 border-2 border-black font-bold text-sm hover:bg-gray-200"
+              >
+                ✕
+              </button>
             </div>
 
             {/* Date */}

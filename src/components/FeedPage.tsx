@@ -113,6 +113,7 @@ export function FeedPage() {
           )
         )
       `)
+      .or('is_log_entry.is.null,is_log_entry.eq.false')
       .order('created_at', { ascending: false });
 
       // console.log('SUPABASE DATA:', data);
@@ -594,7 +595,7 @@ export function FeedPage() {
 
       {/* Welcome modal for new users */}
       {showWelcome && (
-        <WelcomeModal onClose={() => setShowWelcome(false)} />
+        <WelcomeModal onClose={() => { localStorage.removeItem('lyra_show_welcome'); setShowWelcome(false); }} />
       )}
 
       {/* Floating contact button */}
