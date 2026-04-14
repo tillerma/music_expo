@@ -359,7 +359,9 @@ export function ProfilePage() {
   const [showDirectory, setShowDirectory] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [editBio, setEditBio] = useState('');
-  const [editAvatarUrl, setEditAvatarUrl] = useState('');
+  // const [editAvatarUrl, setEditAvatarUrl] = useState('');
+  const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState(''); 
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const isOwnProfile = username === currentUser.username;
 
@@ -477,23 +479,57 @@ export function ProfilePage() {
 
   const handleSaveProfile = async () => {
     if (!profileUser) return;
+
     setIsSavingProfile(true);
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({ bio: editBio, avatar_url: editAvatarUrl })
-      .eq('id', profileUser.id)
-      .select()
-      .single();
-    if (!error && data) {
-      setProfileUser(data);
-      const cached = localStorage.getItem('app_current_user');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        localStorage.setItem('app_current_user', JSON.stringify({ ...parsed, bio: editBio, avatar_url: editAvatarUrl }));
+
+    let avatarUrlToSave = profileUser.avatar_url ?? null;
+
+    try {
+      // 1. Upload new avatar if user selected one
+      if (selectedAvatarFile) {
+        const fileExt = selectedAvatarFile.name.split('.').pop();
+        const filePath = `${profileUser.id}/avatar-${Date.now()}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, selectedAvatarFile, {
+            cacheControl: '3600',
+            upsert: true,
+            contentType: selectedAvatarFile.type,
+          });
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        const { data: publicUrlData } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+
+        avatarUrlToSave = publicUrlData.publicUrl;
       }
+
+      // 2. Save profile row
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({
+          bio: editBio,
+          avatar_url: avatarUrlToSave,
+        })
+        .eq('id', profileUser.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setProfileUser(data);
+      setShowEditProfile(false);
+    } catch (err) {
+      console.error('Error saving profile:', err);
+      alert('Could not save profile changes.');
+    } finally {
+      setIsSavingProfile(false);
     }
-    setIsSavingProfile(false);
-    setShowEditProfile(false);
   };
 
   const monthName = currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' });
@@ -565,9 +601,15 @@ export function ProfilePage() {
           </div>
           {isOwnProfile && (
             <button
+              // onClick={() => {
+              //   setEditBio(profileUser?.bio ?? '');
+              //   setEditAvatarUrl(profileUser?.avatar_url ?? '');
+              //   setShowEditProfile(true);
+              // }}
               onClick={() => {
                 setEditBio(profileUser?.bio ?? '');
-                setEditAvatarUrl(profileUser?.avatar_url ?? '');
+                setSelectedAvatarFile(null);
+                setAvatarPreviewUrl(profileUser?.avatar_url ?? '');
                 setShowEditProfile(true);
               }}
               className="flex items-center gap-1 px-3 py-1 border-2 border-black bg-white font-bold text-sm hover:bg-gray-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
@@ -732,7 +774,7 @@ export function ProfilePage() {
           <div className="bg-white border-4 border-black p-6 w-full max-w-md shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-xl font-bold mb-4">EDIT PROFILE</h2>
 
-            <label className="block text-sm font-bold mb-1">Profile Photo URL</label>
+            {/* <label className="block text-sm font-bold mb-1">Profile Photo URL</label>
             <input
               type="text"
               value={editAvatarUrl}
@@ -742,6 +784,29 @@ export function ProfilePage() {
             />
             {editAvatarUrl && (
               <img src={editAvatarUrl} alt="preview" className="w-20 h-20 border-2 border-black object-cover mb-4" />
+            )} */}
+            <label className="block text-sm font-bold mb-1">Profile Photo</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null;
+                setSelectedAvatarFile(file);
+
+                if (file) {
+                  const localPreview = URL.createObjectURL(file);
+                  setAvatarPreviewUrl(localPreview);
+                }
+              }}
+              className="w-full bg-yellow-100 border-2 border-black px-4 py-2 mb-3"
+            />
+
+            {avatarPreviewUrl && (
+              <img
+                src={avatarPreviewUrl}
+                alt="preview"
+                className="w-20 h-20 border-2 border-black object-cover mb-4"
+              />
             )}
 
             <label className="block text-sm font-bold mb-1">Bio</label>

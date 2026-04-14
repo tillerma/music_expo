@@ -114,7 +114,7 @@ export function FeedPage() {
       `)
       .order('created_at', { ascending: false });
 
-      console.log('SUPABASE DATA:', data);
+      // console.log('SUPABASE DATA:', data);
 
       if (error) {
         console.error('Error fetching posts:', error);
