@@ -14,7 +14,8 @@
 
 // In development, requests are proxied through Vite (/deezer-api → https://api.deezer.com)
 // to avoid CORS restrictions. In production, replace with your own server-side proxy path.
-const DEEZER_BASE = 'https://api.deezer.com';
+// const DEEZER_BASE = 'https://api.deezer.com';
+const DEEZER_BASE = '/deezer-api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
