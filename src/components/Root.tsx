@@ -28,15 +28,23 @@ export function Root() {
     return <Navigate to="/login" replace />;
   }
 
+  const isMapRoute = location.pathname.startsWith('/explore');
+
   return (
-    <div className={location.pathname === '/login' ? 'min-h-screen bg-black text-white' : 'min-h-screen bg-white text-black'}>
-      <div className="max-w-2xl mx-auto pb-20">
+    <div
+      className={location.pathname === '/login' ? 'min-h-screen bg-black text-white' : isMapRoute ? 'h-dvh overflow-hidden bg-white text-black' : 'min-h-screen bg-white text-black'}
+      style={isMapRoute ? { touchAction: 'none' } : undefined}
+    >
+      <div
+        className={isMapRoute ? 'max-w-2xl mx-auto h-full' : 'max-w-2xl mx-auto pb-20'}
+        style={isMapRoute ? { touchAction: 'none' } : undefined}
+      >
         <Outlet />
       </div>
 
       {/* Bottom nav only shown when logged in and not on auth pages */}
       {loggedIn && !isPublic && (
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-black">
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-black z-50">
           <div className="max-w-2xl mx-auto flex justify-around items-center h-16 px-4">
             {navItems.map((item) => {
               const Icon = item.icon;
