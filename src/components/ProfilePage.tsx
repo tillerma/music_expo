@@ -6,6 +6,7 @@ import { SongPost } from '../types';
 import { ChevronLeft, ChevronRight, Pencil, Menu, X, Search, Bell } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useParams, Link } from 'react-router-dom';
+import { toLocalDateString, formatLocalDateFromYMD } from '../utils/date';
 
 // Vivid rainbow colours that cycle across the user list
 const RAINBOW = [
@@ -401,8 +402,8 @@ export function ProfilePage() {
         1
       );
 
-      const startOfMonthStr = startOfMonth.toISOString().split("T")[0];
-      const startOfNextMonthStr = startOfNextMonth.toISOString().split("T")[0];
+      const startOfMonthStr = toLocalDateString(startOfMonth); // startOfMonth.toISOString().split("T")[0];
+      const startOfNextMonthStr = toLocalDateString(startOfNextMonth); // startOfNextMonth.toISOString().split("T")[0];
 
       const { data: postsData, error: postsError } = await supabase
         .from("posts")
@@ -461,7 +462,7 @@ export function ProfilePage() {
     // Add days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
-      const dateStr = date.toISOString().split('T')[0];
+      const dateStr = toLocalDateString(date); // date.toISOString().split('T')[0];
       const post = getPostForDate(dateStr);
       days.push({ day, dateStr, post });
     }
@@ -673,7 +674,8 @@ export function ProfilePage() {
             }
             
             const { day, post } = item;
-            const isToday = item.dateStr === '2026-02-12';
+            // const isToday = item.dateStr === '2026-02-12';
+            const isToday = item.dateStr === toLocalDateString();
             
             return (
               <button
@@ -713,11 +715,7 @@ export function ProfilePage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 mb-4 text-sm">
-              <span className="font-bold text-black">{new Date(selectedPost.date).toLocaleDateString('default', {
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric'
-              }).toUpperCase()}</span>
+              <span className="font-bold text-black">{formatLocalDateFromYMD(selectedPost.date).toUpperCase()}</span>
             </div>
             
             <div className="flex gap-4 mb-4">

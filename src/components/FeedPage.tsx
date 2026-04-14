@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { UserAvatar } from './UserAvatar';
 import { isLoggedIn, logout } from '../utils/spotifyAuth';
+import { toLocalDateString, formatLocalDateFromYMD } from '../utils/date';
 import { currentUser } from '../auth/currentUserInfo';
 // import { currentUser } from '../data/mockData';
 import { SongPost, Comment } from '../types';
@@ -312,7 +313,7 @@ export function FeedPage() {
         artist,
         album_art: albumArt,
         caption: caption.trim(),
-        post_date: new Date().toISOString().split('T')[0],
+        post_date: toLocalDateString(), // new Date().toISOString().split('T')[0],
         created_at: new Date().toISOString(),
       };
 
@@ -414,14 +415,19 @@ export function FeedPage() {
     await supabase.from('comments').delete().eq('id', commentId);
   };
 
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
-  const hasPostedToday = posts.some(p => p.userId === currentUser.id && p.date === todayStr);
-  const formattedDate = today.toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  // const today = new Date();
+  // const todayStr = today.toISOString().split('T')[0];
+  // const hasPostedToday = posts.some(p => p.userId === currentUser.id && p.date === todayStr);
+  const todayStr = toLocalDateString();
+  const hasPostedToday = posts.some(
+    p => p.userId === currentUser.id && p.date === todayStr
+  );
+  // const formattedDate = today.toLocaleDateString('en-US', {
+  //   month: 'long',
+  //   day: 'numeric',
+  //   year: 'numeric',
+  // });
+  const formattedDate = formatLocalDateFromYMD(todayStr);
 
   return (
     <div className="min-h-screen bg-white">
