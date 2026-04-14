@@ -4,11 +4,11 @@
  */
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router';
+import { Link } from 'react-router';
 import { useMusicMapV2, MapPoint, Tag, resolveCollisions } from '../data/musicMapDataV2';
 import { currentUser } from '../auth/currentUserInfo';
-import { avatarPalette, initials } from './UserAvatar';
-import { X, ZoomIn, ZoomOut, Crosshair } from 'lucide-react';
+import { UserAvatar, avatarPalette, initials } from './UserAvatar';
+import { ZoomIn, ZoomOut, Crosshair } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const ZOOM_MIN          = 3;
@@ -140,7 +140,6 @@ function UserDot({ point, size, selected, highlighted, dimmed, isCurrentUser }: 
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export function MusicMapPageV2() {
-  const navigate     = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
 
   const mapState  = useMusicMapV2();
@@ -408,7 +407,7 @@ export function MusicMapPageV2() {
           <div className="min-w-0">
             <h1 className="text-lg sm:text-xl font-black tracking-tight">MUSIC MAP</h1>
             <p className="text-[10px] text-gray-500 font-medium">
-              {points.length} posts
+              {points.length} {points.length === 1 ? 'user' : 'users'}
               {algorithm && viewMode === 'cluster' && (
                 <span className="ml-1 font-black text-purple-600 uppercase">[{algorithm}]</span>
               )}
@@ -608,44 +607,67 @@ export function MusicMapPageV2() {
           onClick={() => setSelectedPoint(null)}
         >
           <div
-            className="bg-white border-4 border-black p-4 sm:p-6 w-full max-w-md shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-h-[85vh] overflow-y-auto"
+            className="bg-white border-4 border-black p-6 w-full max-w-md shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
             onClick={e => e.stopPropagation()}
           >
-            {/* Date + posted by */}
-            <div className="flex items-center justify-between mb-4">
-              <span className="font-bold text-black text-sm">
-                {new Date(selectedPoint.postedAt).toLocaleDateString('default', { month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()}
-              </span>
-              <button
-                onClick={() => setSelectedPoint(null)}
-                className="p-1 hover:bg-gray-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+            {/* User row */}
+            <div className="flex items-center gap-3 mb-4">
+              <Link to={`/profile/${selectedPoint.user.username}`} onClick={() => setSelectedPoint(null)}>
+                <UserAvatar
+                  avatarUrl={selectedPoint.user.avatarUrl}
+                  displayName={selectedPoint.user.displayName}
+                  username={selectedPoint.user.username}
+                  size={44}
+                  className="border-2 border-black flex-shrink-0"
+                />
+              </Link>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold leading-tight">{selectedPoint.user.displayName}</p>
+                <Link
+                  to={`/profile/${selectedPoint.user.username}`}
+                  className="text-sm text-gray-600 hover:underline font-medium"
+                  onClick={() => setSelectedPoint(null)}
+                >
+                  @{selectedPoint.user.username}
+                </Link>
+              </div>
             </div>
 
-            {/* Album art + song info */}
+            {/* Date */}
+            <div className="flex items-center gap-2 mb-4 text-sm">
+              <span className="font-bold text-black">
+                {new Date(selectedPoint.postDate || selectedPoint.postedAt).toLocaleDateString('default', {
+                  month: 'long', day: 'numeric', year: 'numeric',
+                }).toUpperCase()}
+              </span>
+            </div>
+
+            {/* Album art + song info — matches calendar popup proportions */}
             <div className="flex gap-4 mb-4">
               {selectedPoint.albumArt ? (
                 <img
                   src={selectedPoint.albumArt}
                   alt={selectedPoint.songTitle}
-                  className="w-24 h-24 sm:w-32 sm:h-32 border-2 border-black object-cover shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex-shrink-0"
+                  className="w-32 h-32 border-2 border-black object-cover shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex-shrink-0"
                 />
               ) : (
-                <div className="w-24 h-24 sm:w-32 sm:h-32 border-2 border-black bg-gray-100 flex items-center justify-center flex-shrink-0 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-                  <span className="text-3xl">🎵</span>
+                <div className="w-32 h-32 border-2 border-black bg-gray-100 flex items-center justify-center flex-shrink-0 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                  <span className="text-4xl">🎵</span>
                 </div>
               )}
               <div className="flex flex-col justify-center min-w-0">
-                <p className="font-bold text-black mb-1 leading-snug">{selectedPoint.songTitle}</p>
-                <p className="text-sm text-gray-600 font-medium mb-2">{selectedPoint.artist}</p>
-                <button
-                  onClick={() => { navigate(`/profile/${selectedPoint.user.username}`); setSelectedPoint(null); }}
-                  className="text-sm font-bold text-purple-600 hover:text-purple-800 text-left"
-                >
-                  @{selectedPoint.user.username}
-                </button>
+                <p className="font-bold mb-1 text-black">{selectedPoint.songTitle}</p>
+                <p className="text-sm text-gray-600 mb-3 font-medium">{selectedPoint.artist}</p>
+                {selectedPoint.spotifyUrl && (
+                  <a
+                    href={selectedPoint.spotifyUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-blue-600 hover:text-blue-800 font-bold underline"
+                  >
+                    OPEN IN SPOTIFY
+                  </a>
+                )}
               </div>
             </div>
 
@@ -668,6 +690,7 @@ export function MusicMapPageV2() {
               </div>
             )}
 
+            {/* Close — matches calendar popup */}
             <button
               onClick={() => setSelectedPoint(null)}
               className="w-full bg-gray-200 border-2 border-black px-4 py-2 font-bold hover:bg-gray-300 transition-colors"

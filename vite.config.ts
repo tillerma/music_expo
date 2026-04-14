@@ -56,5 +56,14 @@
     server: {
       port: 3000,
       open: true,
+      proxy: {
+        // Proxy Deezer API calls through Vite to avoid CORS in development.
+        // Requests to /deezer-api/* are forwarded to https://api.deezer.com/*.
+        '/deezer-api': {
+          target: 'https://api.deezer.com',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/deezer-api/, ''),
+        },
+      },
     },
   });

@@ -14,10 +14,11 @@
  */
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, Link } from 'react-router';
 import { useMusicMap, UserMapPosition, AudioFeatures } from '../data/musicMapData';
 import { currentUser } from '../data/mockData';
 import { X, ZoomIn, ZoomOut, Crosshair, ChevronDown, Music } from 'lucide-react';
+import { UserAvatar } from './UserAvatar';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const ZOOM_MIN    = 0.35;
@@ -230,7 +231,21 @@ export function MusicMapPage() {
   // useMusicMap returns { status: 'loading' | 'ready' | 'error', positions? }
   // Swap to useMusicMapLive in musicMapData.ts when your API is ready.
   const mapState = useMusicMap();
-  const userMapPositions = mapState.status === 'ready' ? mapState.positions : [];
+
+  // Absolute guarantee: one node per user id, regardless of what the data
+  // layer returns. The first entry encountered per user wins (data is already
+  // ordered newest-first from the Supabase queries).
+  const userMapPositions = useMemo(() => {
+    if (mapState.status !== 'ready') return [];
+    const seen = new Set<string>();
+    const out: typeof mapState.positions = [];
+    for (const p of mapState.positions) {
+      if (!p.user.id || seen.has(p.user.id)) continue;
+      seen.add(p.user.id);
+      out.push(p);
+    }
+    return out;
+  }, [mapState]);
 
   // ── Transform state ────────────────────────────────────────────────────────
   const transformRef = useRef<Transform>({ x: 0, y: 0, scale: 1 });
@@ -424,6 +439,10 @@ export function MusicMapPage() {
   // ── Avatar click / hover ───────────────────────────────────────────────────
   const handleAvatarPointerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
+    // Reset drag flag so a clean click always opens the popup,
+    // even if the user just finished panning the map.
+    didDrag.current = false;
+    isDown.current  = false;
   };
 
   const handleAvatarClick = (e: React.MouseEvent, userPos: UserMapPosition) => {
@@ -715,51 +734,94 @@ export function MusicMapPage() {
           onClick={() => setSelectedUser(null)}
         >
           <div
-            className="bg-white border-4 border-black w-full max-w-sm"
+            className="bg-white border-4 border-black w-full max-w-sm shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
             onClick={e => e.stopPropagation()}
           >
-            {/* Header */}
+            {/* Header: feed-style avatar + name + close */}
             <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b-2 border-black">
-              <div className="flex items-center gap-3">
-                {selectedUser.user.avatarUrl ? (
-                  <img
-                    src={selectedUser.user.avatarUrl}
-                    alt={selectedUser.user.username}
-                    className="w-10 h-10 rounded-full border-2 border-black object-cover flex-shrink-0"
-                  />
-                ) : (
-                  <AnonAvatar
-                    username={selectedUser.user.username}
-                    size={40}
-                    className="border-2 border-black flex-shrink-0"
-                  />
-                )}
-                <div>
-                  <p className="font-bold leading-tight">{selectedUser.user.displayName}</p>
-                  <p className="text-xs text-gray-500">@{selectedUser.user.username}</p>
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <UserAvatar
+                  avatarUrl={selectedUser.user.avatarUrl}
+                  displayName={selectedUser.user.displayName}
+                  username={selectedUser.user.username}
+                  size={40}
+                  className="border-2 border-black flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold leading-tight truncate">{selectedUser.user.displayName}</p>
+                  <Link
+                    to={`/profile/${selectedUser.user.username}`}
+                    className="text-sm text-gray-600 hover:underline"
+                    onClick={() => setSelectedUser(null)}
+                  >
+                    @{selectedUser.user.username}
+                  </Link>
                 </div>
               </div>
-              <button onClick={() => setSelectedUser(null)} className="p-1 hover:bg-gray-100 border border-black">
+              <button onClick={() => setSelectedUser(null)} className="p-1 hover:bg-gray-100 border border-black flex-shrink-0 ml-2">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Song + caption */}
+            {/* Body */}
             <div className="px-5 pt-4 pb-2">
-              <div className="flex items-center gap-3 bg-purple-50 border-2 border-black px-3 py-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-gray-900 border-2 border-black flex-shrink-0 flex items-center justify-center">
-                  <Music className="w-4 h-4 text-purple-400" />
-                </div>
-                <div className="min-w-0">
-                  <p className="font-bold truncate">{selectedUser.songToday.songTitle}</p>
-                  <p className="text-sm text-gray-500 truncate">{selectedUser.songToday.artist}</p>
+
+              {/* Date */}
+              <p className="text-xs font-bold text-gray-500 mb-3">
+                {new Date(selectedUser.songToday.postDate || selectedUser.songToday.postedAt).toLocaleDateString('default', {
+                  month: 'long', day: 'numeric', year: 'numeric',
+                }).toUpperCase()}
+              </p>
+
+              {/* Album art + song info */}
+              <div className="flex gap-3 mb-3">
+                {selectedUser.songToday.albumArt ? (
+                  <img
+                    src={selectedUser.songToday.albumArt}
+                    alt={selectedUser.songToday.songTitle}
+                    className="w-20 h-20 border-2 border-black object-cover shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-20 h-20 border-2 border-black flex-shrink-0 bg-gray-900 flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                    <Music className="w-8 h-8 text-purple-400" />
+                  </div>
+                )}
+                <div className="flex flex-col justify-center min-w-0">
+                  <p className="font-bold leading-tight mb-0.5 truncate">{selectedUser.songToday.songTitle}</p>
+                  <p className="text-sm text-gray-500 truncate mb-2">{selectedUser.songToday.artist}</p>
+                  {selectedUser.songToday.spotifyUrl && (
+                    <a
+                      href={selectedUser.songToday.spotifyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-bold text-green-600 hover:text-green-700 underline"
+                    >
+                      OPEN IN SPOTIFY ↗
+                    </a>
+                  )}
                 </div>
               </div>
 
               {/* Caption */}
-              <p className="text-sm text-gray-700 italic leading-relaxed mb-4">
-                "{selectedUser.songToday.caption}"
-              </p>
+              {selectedUser.songToday.caption && (
+                <p className="text-sm text-gray-700 italic leading-relaxed mb-3">
+                  "{selectedUser.songToday.caption}"
+                </p>
+              )}
+
+              {/* Tags */}
+              {selectedUser.songToday.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-4">
+                  {selectedUser.songToday.tags.slice(0, 6).map(tag => (
+                    <span
+                      key={tag.name}
+                      className="text-[10px] font-bold px-2 py-0.5 border-2 border-black bg-purple-50"
+                    >
+                      {tag.name}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {/* Audio feature bars */}
               <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-2">

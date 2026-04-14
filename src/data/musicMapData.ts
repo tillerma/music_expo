@@ -38,13 +38,16 @@ export type AudioFeatures = {
 };
 
 export type MapPost = {
-  userId:    string;
-  songTitle: string;
-  artist:    string;
-  albumArt:  string | null;
-  caption:   string;
-  features:  AudioFeatures;
-  postedAt:  string;
+  userId:     string;
+  songTitle:  string;
+  artist:     string;
+  albumArt:   string | null;
+  spotifyUrl: string | null;
+  caption:    string;
+  features:   AudioFeatures;
+  postedAt:   string;
+  postDate:   string;
+  tags:       { name: string; count: number }[];
 };
 
 export type MapUser = {
@@ -197,13 +200,16 @@ export function hydratePosition(
     x: raw.x,
     y: raw.y,
     songToday: {
-      userId:    raw.userId,
-      songTitle: raw.songToday.songTitle,
-      artist:    raw.songToday.artist,
-      albumArt:  raw.songToday.albumArt ?? null,
-      caption:   raw.songToday.caption ?? mockCaption(raw.userId, raw.songToday.songTitle),
-      features:  raw.songToday.features as AudioFeatures,
-      postedAt:  raw.songToday.postedAt ?? new Date().toISOString(),
+      userId:     raw.userId,
+      songTitle:  raw.songToday.songTitle,
+      artist:     raw.songToday.artist,
+      albumArt:   raw.songToday.albumArt ?? null,
+      spotifyUrl: raw.songToday.spotifyUrl ?? null,
+      caption:    raw.songToday.caption ?? mockCaption(raw.userId, raw.songToday.songTitle),
+      features:   raw.songToday.features as AudioFeatures,
+      postedAt:   raw.songToday.postedAt ?? new Date().toISOString(),
+      postDate:   raw.songToday.postDate ?? (raw.songToday.postedAt ?? new Date().toISOString()).slice(0, 10),
+      tags:       raw.songToday.tags ?? [],
     },
   };
 }
@@ -232,6 +238,8 @@ export function useMusicMapSupabase(
     async function fetchAndCompute() {
       try {
         // ── Priority 1: pre-computed UMAP positions from scheduler ────────────
+        // Order by computed_at DESC so the first row we encounter per user is
+        // their most-recent entry (the scheduler may insert one row per post).
         const { data: precomputed } = await supabase
           .from('map_positions')
           .select(`
@@ -239,28 +247,42 @@ export function useMusicMapSupabase(
             profiles!map_positions_user_id_fkey (
               username, display_name, avatar_url
             )
-          `);
+          `)
+          .order('computed_at', { ascending: false });
 
         if (!cancelled && precomputed && precomputed.length > 0) {
-          const positions: UserMapPosition[] = precomputed.map((row: any) => ({
-            user: {
-              id:          row.user_id,
-              username:    row.profiles?.username    ?? `user_${String(row.user_id).slice(0, 6)}`,
-              displayName: row.profiles?.display_name ?? row.profiles?.username ?? 'Unknown',
-              avatarUrl:   row.profiles?.avatar_url  ?? null,
-            },
-            x: row.x,
-            y: row.y,
-            songToday: {
-              userId:    row.user_id,
-              songTitle: row.song_title ?? '',
-              artist:    row.artist     ?? '',
-              albumArt:  row.album_art  ?? null,
-              caption:   row.caption    ?? '',
-              features:  row.features   as AudioFeatures,
-              postedAt:  row.computed_at ?? new Date().toISOString(),
-            },
-          }));
+          // One node per user: the first row encountered (most recent) wins.
+          const seenIds = new Set<string>();
+          const positions: UserMapPosition[] = [];
+
+          for (const row of precomputed as any[]) {
+            const uid = String(row.user_id ?? '');
+            if (!uid || seenIds.has(uid)) continue;
+            seenIds.add(uid);
+            positions.push({
+              user: {
+                id:          uid,
+                username:    row.profiles?.username    ?? `user_${uid.slice(0, 6)}`,
+                displayName: row.profiles?.display_name ?? row.profiles?.username ?? 'Unknown',
+                avatarUrl:   row.profiles?.avatar_url  ?? null,
+              },
+              x: row.x,
+              y: row.y,
+              songToday: {
+                userId:     uid,
+                songTitle:  row.song_title ?? '',
+                artist:     row.artist     ?? '',
+                albumArt:   row.album_art  ?? null,
+                spotifyUrl: row.spotify_url ?? null,
+                caption:    row.caption    ?? '',
+                features:   row.features   as AudioFeatures,
+                postedAt:   row.computed_at ?? new Date().toISOString(),
+                postDate:   (row.computed_at ?? new Date().toISOString()).slice(0, 10),
+                tags:       [],
+              },
+            });
+          }
+
           setState({ status: 'ready', positions });
           return;
         }
@@ -269,9 +291,9 @@ export function useMusicMapSupabase(
         const { data: posts, error } = await supabase
           .from('posts')
           .select(`
-            user_id, caption, created_at,
+            user_id, caption, created_at, post_date,
             songs!posts_song_id_fkey (
-              song_title, artist, album_art,
+              song_title, artist, album_art, spotify_url, tags,
               danceability, energy, valence, acousticness,
               instrumentalness, liveness, speechiness, tempo, loudness
             ),
@@ -290,58 +312,71 @@ export function useMusicMapSupabase(
           return;
         }
 
-        // Group by user_id: accumulate feature vectors and track latest post
+        // Posts arrive newest-first (ORDER BY created_at DESC).
+        // We collect:
+        //   • latestPost  – the first (most recent) post that has a song, per user
+        //   • allFeatures – audio features from ALL posts for that user (for PCA)
         type UserAcc = {
           profile:    any;
-          features:   AudioFeatures[];
-          latestPost: any;
+          latestPost: any;           // most-recent post with a song
+          allFeatures: AudioFeatures[];
         };
+
         const byUser = new Map<string, UserAcc>();
 
         for (const post of posts as any[]) {
-          const song = post.songs;
-          if (!song) continue;
+          const uid = String(post.user_id ?? '');
+          if (!uid) continue;
 
-          const uid: string = post.user_id;
+          const song = post.songs as any;
+
           if (!byUser.has(uid)) {
-            byUser.set(uid, { profile: post.profiles, features: [], latestPost: post });
+            // First (most recent) post for this user — use it as the display post
+            // even if it has no song; we'll update once we find one with a song.
+            byUser.set(uid, { profile: post.profiles, latestPost: post, allFeatures: [] });
           }
 
-          byUser.get(uid)!.features.push({
-            danceability:     song.danceability     ?? 0,
-            energy:           song.energy           ?? 0,
-            valence:          song.valence           ?? 0,
-            acousticness:     song.acousticness     ?? 0,
-            instrumentalness: song.instrumentalness ?? 0,
-            liveness:         song.liveness         ?? 0,
-            speechiness:      song.speechiness      ?? 0,
-            tempo:            song.tempo             ?? 0,
-            loudness:         song.loudness          ?? 0,
-          });
+          if (song) {
+            const acc = byUser.get(uid)!;
+            // If the stored latestPost has no song, upgrade to this one
+            if (!acc.latestPost.songs) acc.latestPost = post;
+            acc.allFeatures.push({
+              danceability:     song.danceability     ?? 0,
+              energy:           song.energy           ?? 0,
+              valence:          song.valence           ?? 0,
+              acousticness:     song.acousticness     ?? 0,
+              instrumentalness: song.instrumentalness ?? 0,
+              liveness:         song.liveness         ?? 0,
+              speechiness:      song.speechiness      ?? 0,
+              tempo:            song.tempo             ?? 0,
+              loudness:         song.loudness          ?? 0,
+            });
+          }
         }
 
-        const userIds = [...byUser.keys()];
+        // Keep only users that have at least one post with audio features
+        const userIds = [...byUser.keys()].filter(uid => byUser.get(uid)!.allFeatures.length > 0);
 
-        // Build feature matrix: one averaged vector per user
+        // Build feature matrix — one averaged vector per user
         const featureMatrix = userIds.map(uid => {
-          const { features } = byUser.get(uid)!;
+          const { allFeatures } = byUser.get(uid)!;
           return FEATURE_KEYS.map(k =>
-            features.reduce((s, f) => s + f[k], 0) / features.length,
+            allFeatures.reduce((s, f) => s + f[k], 0) / allFeatures.length,
           );
         });
 
         // PCA → 2D coordinates
         const coords = computePCA2D(featureMatrix);
 
+        // One UserMapPosition per user — guaranteed by the Map above
         const positions: UserMapPosition[] = userIds.map((uid, i) => {
-          const { profile, latestPost, features } = byUser.get(uid)!;
+          const { profile, latestPost, allFeatures } = byUser.get(uid)!;
           const song = latestPost.songs as any;
 
-          // Per-user averaged features (for the feature-axis mode)
           const avgFeatures = Object.fromEntries(
             FEATURE_KEYS.map(k => [
               k,
-              features.reduce((s, f) => s + f[k], 0) / features.length,
+              allFeatures.reduce((s, f) => s + f[k], 0) / allFeatures.length,
             ]),
           ) as AudioFeatures;
 
@@ -355,13 +390,16 @@ export function useMusicMapSupabase(
             x: coords[i][0],
             y: coords[i][1],
             songToday: {
-              userId:    uid,
-              songTitle: song?.song_title ?? 'Unknown',
-              artist:    song?.artist     ?? 'Unknown',
-              albumArt:  song?.album_art  ?? null,
-              caption:   latestPost.caption ?? '',
-              features:  avgFeatures,
-              postedAt:  latestPost.created_at ?? new Date().toISOString(),
+              userId:     uid,
+              songTitle:  song?.song_title  ?? 'Unknown',
+              artist:     song?.artist      ?? 'Unknown',
+              albumArt:   song?.album_art   ?? null,
+              spotifyUrl: song?.spotify_url ?? null,
+              caption:    latestPost.caption ?? '',
+              features:   avgFeatures,
+              postedAt:   latestPost.created_at ?? new Date().toISOString(),
+              postDate:   latestPost.post_date  ?? (latestPost.created_at ?? new Date().toISOString()).slice(0, 10),
+              tags:       song?.tags ?? [],
             },
           };
         });

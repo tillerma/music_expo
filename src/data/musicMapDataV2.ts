@@ -17,6 +17,7 @@ import { useState, useEffect } from 'react';
 import { UMAP } from 'umap-js';
 import { supabase } from '../lib/supabase';
 import { getArtistTopTags } from '../api/lastfm';
+import { getDeezerFeatures, normalizeDeezerFeatures, DeezerFeatures } from '../api/deezer';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -29,16 +30,18 @@ export type MapUser = {
   avatarUrl: string | null;
 };
 
-/** One dot on the map = one post */
+/** One dot on the map = one user (their most recent post) */
 export type MapPoint = {
   id: string;         // post id
   user: MapUser;
   songTitle: string;
   artist: string;
   albumArt: string | null;
+  spotifyUrl: string | null;
   caption: string;
   tags: Tag[];        // track tags, or artist tags if track had none
   postedAt: string;
+  postDate: string;   // YYYY-MM-DD
   x: number;         // cluster coordinate (UMAP/PCA)
   y: number;
 };
@@ -218,12 +221,13 @@ export function useMusicMapV2(
 
     async function fetchAndCompute() {
       try {
+        // Fetch all posts newest-first so the first row per user = most recent
         const { data: posts, error } = await supabase
           .from('posts')
           .select(`
-            id, user_id, caption, created_at,
+            id, user_id, caption, created_at, post_date,
             songs!posts_song_id_fkey (
-              id, song_title, artist, album_art, tags
+              id, song_title, artist, album_art, spotify_url, tags
             ),
             profiles!posts_user_id_fkey (
               id, username, display_name, avatar_url
@@ -239,20 +243,26 @@ export function useMusicMapV2(
           return;
         }
 
-        // ── Step 1: collect per-post data, identify posts needing artist tags ──
+        // ── Step 1: deduplicate to ONE post per user (most recent) ────────────
         type RawPost = {
           postId: string;
           user: MapUser;
           song: any;
           caption: string;
           createdAt: string;
+          postDate: string;
           tags: Tag[];
         };
 
         const rawPosts: RawPost[] = [];
-        const artistsToFetch = new Set<string>(); // artists where track has no tags
+        const seenUsers = new Set<string>();
+        const artistsToFetch = new Set<string>();
 
         for (const post of posts as any[]) {
+          const uid = String(post.user_id ?? '');
+          if (!uid || seenUsers.has(uid)) continue; // keep only most-recent post per user
+          seenUsers.add(uid);
+
           const song = post.songs;
           if (!song) continue;
 
@@ -263,14 +273,15 @@ export function useMusicMapV2(
           rawPosts.push({
             postId: post.id,
             user: {
-              id: post.user_id,
-              username: post.profiles?.username ?? `user_${post.user_id.slice(0, 6)}`,
+              id: uid,
+              username: post.profiles?.username ?? `user_${uid.slice(0, 6)}`,
               displayName: post.profiles?.display_name ?? post.profiles?.username ?? 'Unknown',
               avatarUrl: post.profiles?.avatar_url ?? null,
             },
             song,
             caption: post.caption ?? '',
             createdAt: post.created_at ?? '',
+            postDate: post.post_date ?? (post.created_at ?? '').slice(0, 10),
             tags: trackTags,
           });
 
@@ -282,7 +293,6 @@ export function useMusicMapV2(
         // ── Step 2: fetch artist tags in parallel for tagless songs ───────────
         const artistTagCache = new Map<string, Tag[]>();
         if (artistsToFetch.size > 0) {
-          console.log(`[MusicMap] Fetching artist tags for ${artistsToFetch.size} artists...`);
           const timeout = (ms: number) => new Promise<never>((_, r) => setTimeout(() => r(new Error('timeout')), ms));
           const results = await Promise.allSettled(
             [...artistsToFetch].map(async artist => {
@@ -297,7 +307,7 @@ export function useMusicMapV2(
           }
         }
 
-        // ── Step 3: resolve final tags for each post ──────────────────────────
+        // ── Step 3: resolve final tags for each user's post ──────────────────
         const resolvedPosts = rawPosts.map(p => ({
           ...p,
           tags: p.tags.length > 0
@@ -305,19 +315,61 @@ export function useMusicMapV2(
             : (artistTagCache.get(p.song.artist) ?? []),
         }));
 
-        // posts with tags (for PCA/UMAP) vs posts without (will still be shown, placed at origin)
+        // Split into tagged (placed by UMAP/PCA) and untagged (placed at origin)
         const taggedPosts = resolvedPosts.filter(p => p.tags.length > 0);
         const untaggedPosts = resolvedPosts.filter(p => p.tags.length === 0);
-
-        console.log(`[MusicMap] ${resolvedPosts.length} posts total, ${taggedPosts.length} with tags`);
 
         const allTagArrays = resolvedPosts.map(p => p.tags).filter(t => t.length > 0);
         const allTags = buildAllTagsSorted(allTagArrays);
         const vocab = buildVocab(allTagArrays, 50);
 
-        console.log(`[MusicMap] Top tags:`, vocab.slice(0, 8));
+        // ── Step 3.5: fetch Deezer metadata in parallel (best-effort) ─────────
+        // Keyed by "songTitle|artist" to deduplicate across posts sharing a song.
+        const deezerCache = new Map<string, DeezerFeatures | null>();
+        {
+          const deezerTimeout = (ms: number) =>
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('deezer timeout')), ms));
 
-        // ── Step 4: feature matrix (tagged posts only) ────────────────────────
+          // Only fetch for tagged posts — untagged go to origin regardless.
+          const uniqueSongs = [
+            ...new Map(
+              taggedPosts.map(p => [
+                `${p.song.song_title ?? ''}|${p.song.artist ?? ''}`,
+                { title: p.song.song_title ?? '', artist: p.song.artist ?? '' },
+              ]),
+            ).entries(),
+          ];
+
+          const deezerResults = await Promise.allSettled(
+            uniqueSongs.map(async ([key, { title, artist }]) => {
+              const features = await Promise.race([
+                getDeezerFeatures(title, artist),
+                deezerTimeout(5000),
+              ]);
+              return { key, features };
+            }),
+          );
+
+          for (const r of deezerResults) {
+            if (r.status === 'fulfilled') {
+              deezerCache.set(r.value.key, r.value.features);
+            }
+          }
+        }
+
+        // ── Step 4: feature matrix (tagged users only) ────────────────────────
+        //
+        // Fusion strategy: equal-contribution L2 normalization
+        //
+        //   1. Tag sub-vector   → L2-normalize to unit length  (||tag|| = 1)
+        //   2. Deezer sub-vector → L2-normalize to unit length  (||deezer|| = 1)
+        //      If no Deezer data, stays [0,0,0] → contributes nothing (degrades
+        //      gracefully to pure tag embedding for that post).
+        //   3. Concatenate: combined ∈ ℝ^(vocab+3), ||combined|| ≤ sqrt(2)
+        //   4. Final L2-normalize: each sub-space has equal geometric weight.
+        //
+        // This ensures neither source dominates purely by dimensionality count.
+
         let coords: [number, number][];
         let algorithm: 'umap' | 'pca' | 'trivial';
 
@@ -328,23 +380,36 @@ export function useMusicMapV2(
           coords = [[0, 0]];
           algorithm = 'trivial';
         } else {
-          const raw = taggedPosts.map(p =>
-            vocab.map(v => {
-              const t = p.tags.find(t => t.name === v);
+          const featureMatrix = taggedPosts.map(p => {
+            // ── Last.fm tag sub-vector → L2 unit vector ───────────────────────
+            const tagRaw = vocab.map(v => {
+              const t = p.tags.find(tag => tag.name === v);
               return t ? t.count : 0;
-            }),
-          );
-          // L2-normalise each row so UMAP uses cosine-like similarity.
-          // Without this, songs with many high-count tags dominate; normalised
-          // vectors spread out by tag *distribution*, revealing real clusters.
-          const featureMatrix = raw.map(row => {
-            const norm = Math.sqrt(row.reduce((s, v) => s + v * v, 0)) || 1;
-            return row.map(v => v / norm);
+            });
+            const tagNorm = Math.sqrt(tagRaw.reduce((s, v) => s + v * v, 0)) || 1;
+            const tagUnit = tagRaw.map(v => v / tagNorm);   // ||tagUnit|| = 1
+
+            // ── Deezer sub-vector → L2 unit vector (or zero if unavailable) ───
+            const key = `${p.song.song_title ?? ''}|${p.song.artist ?? ''}`;
+            const deezerFeat = deezerCache.get(key) ?? null;
+            const deezerRaw  = normalizeDeezerFeatures(deezerFeat); // [dur, rank, bpm_flag]
+            const deezerMag  = Math.sqrt(deezerRaw.reduce((s, v) => s + v * v, 0));
+            // Only normalize when we actually have Deezer data; keep [0,0,0] as-is
+            const deezerUnit = deezerMag > 0
+              ? (deezerRaw.map(v => v / deezerMag) as [number, number, number])
+              : deezerRaw;                                    // ||deezerUnit|| = 1 or 0
+
+            // ── Fuse: concat → final L2-normalize ────────────────────────────
+            const combined = [...tagUnit, ...deezerUnit];
+
+            console.log('MERGED FEATURE VECTOR:', combined);
+
+            const finalNorm = Math.sqrt(combined.reduce((s, v) => s + v * v, 0)) || 1;
+            return combined.map(v => v / finalNorm);
           });
 
           if (taggedPosts.length >= 6) {
             try {
-              console.log('[MusicMap] Running UMAP...');
               coords = computeUMAP2D(featureMatrix);
               algorithm = 'umap';
             } catch {
@@ -356,29 +421,28 @@ export function useMusicMapV2(
             algorithm = 'pca';
           }
 
-          // Normalize to [-4, 4] to keep clusters visually compact.
-          // minDist = 1.0 ≈ just enough to prevent dot overlap at fit-all scale.
           coords = normalizeCoords(coords);
           coords = resolveCollisions(coords, 1.0, 60);
         }
 
         if (cancelled) return;
 
-        // ── Step 5: assemble final points ─────────────────────────────────────
+        // ── Step 5: assemble final points (one per user) ──────────────────────
         const taggedPoints: MapPoint[] = taggedPosts.map((p, i) => ({
           id: p.postId,
           user: p.user,
           songTitle: p.song.song_title ?? 'Unknown',
           artist: p.song.artist ?? 'Unknown',
           albumArt: p.song.album_art ?? null,
+          spotifyUrl: p.song.spotify_url ?? null,
           caption: p.caption,
           tags: p.tags,
           postedAt: p.createdAt,
+          postDate: p.postDate,
           x: coords[i]?.[0] ?? 0,
           y: coords[i]?.[1] ?? 0,
         }));
 
-        // Untagged posts get scattered lightly around origin
         const untaggedPoints: MapPoint[] = untaggedPosts.map((p, i) => {
           const angle = (i / Math.max(untaggedPosts.length, 1)) * Math.PI * 2;
           return {
@@ -387,17 +451,17 @@ export function useMusicMapV2(
             songTitle: p.song.song_title ?? 'Unknown',
             artist: p.song.artist ?? 'Unknown',
             albumArt: p.song.album_art ?? null,
+            spotifyUrl: p.song.spotify_url ?? null,
             caption: p.caption,
             tags: [],
             postedAt: p.createdAt,
+            postDate: p.postDate,
             x: Math.cos(angle) * 0.5,
             y: Math.sin(angle) * 0.5,
           };
         });
 
         const points = [...taggedPoints, ...untaggedPoints];
-
-        console.log('[MusicMap] Done.', points.length, 'points,', algorithm);
 
         if (!cancelled) setState({ status: 'ready', points, allTags, algorithm });
       } catch (err) {

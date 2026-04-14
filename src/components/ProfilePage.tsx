@@ -3,7 +3,7 @@ import { UserAvatar } from './UserAvatar';
 import { currentUser } from '../auth/currentUserInfo';
 import { /*currentUser, */generateCalendarPosts } from '../data/mockData';
 import { SongPost } from '../types';
-import { ChevronLeft, ChevronRight, Pencil, Menu, X, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pencil, Menu, X, Search, Bell } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useParams, Link } from 'react-router-dom';
 
@@ -123,6 +123,230 @@ function UserDirectoryPanel({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ─── Notifications panel ──────────────────────────────────────────────────────
+
+type NotifItem = {
+  id: string;
+  type: 'comment' | 'reaction';
+  timestamp: string;
+  actorUsername: string;
+  actorDisplayName: string;
+  actorAvatarUrl: string | null;
+  postId: string;
+  postDate: string;
+  songTitle: string;
+  artist: string;
+  albumArt: string | null;
+  spotifyUrl: string;
+  caption: string;
+  emoji?: string;
+  commentText?: string;
+};
+
+type PostClickInfo = {
+  date: string;
+  albumArt: string;
+  songTitle: string;
+  artist: string;
+  spotifyUrl: string;
+  caption: string;
+};
+
+function NotificationsPanel({
+  currentUserId,
+  onClose,
+  onPostClick,
+}: {
+  currentUserId: string;
+  onClose: () => void;
+  onPostClick: (info: PostClickInfo) => void;
+}) {
+  const [notifs, setNotifs] = useState<NotifItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchNotifs() {
+      // Always fetch notifications for the logged-in user only
+      const { data: posts, error } = await supabase
+        .from('posts')
+        .select(`
+          id, post_date, song_title, artist, album_art, spotify_url, caption,
+          comments (
+            id, user_id, caption, timestamp,
+            profiles!comments_user_id_fkey (
+              id, username, display_name, avatar_url
+            )
+          ),
+          reactions (
+            id, emoji, user_id, user_name
+          )
+        `)
+        .eq('user_id', currentUserId)
+        .order('created_at', { ascending: false });
+
+      if (error || !posts) {
+        setLoading(false);
+        return;
+      }
+
+      const items: NotifItem[] = [];
+
+      for (const post of posts as any[]) {
+        const postBase = {
+          postId: post.id,
+          postDate: post.post_date ?? '',
+          songTitle: post.song_title ?? 'Unknown',
+          artist: post.artist ?? '',
+          albumArt: post.album_art ?? null,
+          spotifyUrl: post.spotify_url ?? '',
+          caption: post.caption ?? '',
+        };
+
+        for (const c of post.comments ?? []) {
+          if (c.user_id === currentUserId) continue; // skip own comments
+          const prof = c.profiles ?? {};
+          items.push({
+            ...postBase,
+            id: `comment-${c.id}`,
+            type: 'comment',
+            timestamp: c.timestamp ?? '',
+            actorUsername: prof.username ?? c.user_id,
+            actorDisplayName: prof.display_name ?? prof.username ?? c.user_id,
+            actorAvatarUrl: prof.avatar_url ?? null,
+            commentText: c.caption,
+          });
+        }
+
+        for (const r of post.reactions ?? []) {
+          if (r.user_id === currentUserId) continue; // skip own reactions
+          items.push({
+            ...postBase,
+            id: `reaction-${r.id}`,
+            type: 'reaction',
+            timestamp: '',
+            actorUsername: r.user_name ?? r.user_id,
+            actorDisplayName: r.user_name ?? r.user_id,
+            actorAvatarUrl: null,
+            emoji: r.emoji,
+          });
+        }
+      }
+
+      items.sort((a, b) => (b.timestamp > a.timestamp ? 1 : -1));
+      setNotifs(items);
+      setLoading(false);
+    }
+
+    fetchNotifs();
+  }, [currentUserId]);
+
+  const fmtDate = (d: string) => {
+    if (!d) return '';
+    const [y, m, day] = d.split('-');
+    return new Date(Number(y), Number(m) - 1, Number(day))
+      .toLocaleDateString('default', { month: 'short', day: 'numeric' });
+  };
+
+  return (
+    <>
+      {/* Backdrop — clicking outside closes the panel */}
+      <div className="fixed inset-0 bg-black/40 z-30" onClick={onClose} />
+
+      <div className="fixed top-0 left-0 bottom-0 w-80 max-w-[90vw] bg-white border-r-4 border-black z-40 flex flex-col shadow-[6px_0px_0px_0px_rgba(0,0,0,1)]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b-4 border-black bg-gradient-to-r from-purple-200 to-pink-200 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <Bell className="w-5 h-5" />
+            <span className="font-black text-sm tracking-widest uppercase">Notifications</span>
+          </div>
+          <button onClick={onClose} className="p-1 hover:bg-black/10 active:bg-black/20 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* List */}
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center h-24 gap-2">
+              <div className="w-4 h-4 border-4 border-black border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs font-bold">Loading…</span>
+            </div>
+          ) : notifs.length === 0 ? (
+            <p className="text-xs text-gray-400 font-bold text-center py-8">No notifications yet</p>
+          ) : (
+            notifs.map(n => (
+              <div key={n.id} className="flex gap-3 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                {/* Actor avatar — links to their profile */}
+                <Link to={`/profile/${n.actorUsername}`} onClick={onClose} className="flex-shrink-0">
+                  <UserAvatar
+                    avatarUrl={n.actorAvatarUrl}
+                    displayName={n.actorDisplayName}
+                    username={n.actorUsername}
+                    size={36}
+                    className="border-2 border-black"
+                  />
+                </Link>
+
+                {/* Body */}
+                <div className="flex-1 min-w-0">
+                  {/* Who + action */}
+                  <p className="text-xs leading-snug">
+                    <Link
+                      to={`/profile/${n.actorUsername}`}
+                      onClick={onClose}
+                      className="font-black hover:underline"
+                    >
+                      {n.actorDisplayName}
+                    </Link>
+                    {' '}
+                    {n.type === 'comment' ? (
+                      <span className="text-gray-600">commented on your post</span>
+                    ) : (
+                      <span className="text-gray-600">reacted {n.emoji} to your post</span>
+                    )}
+                  </p>
+
+                  {/* Comment text preview */}
+                  {n.type === 'comment' && n.commentText && (
+                    <p className="text-xs text-gray-500 italic mt-0.5 truncate">"{n.commentText}"</p>
+                  )}
+
+                  {/* Song row — clicking opens the calendar post popup */}
+                  <button
+                    className="flex items-center gap-2 mt-1.5 w-full text-left hover:bg-gray-100 rounded transition-colors"
+                    onClick={() => {
+                      onPostClick({
+                        date: n.postDate,
+                        albumArt: n.albumArt ?? '',
+                        songTitle: n.songTitle,
+                        artist: n.artist,
+                        spotifyUrl: n.spotifyUrl,
+                        caption: n.caption,
+                      });
+                    }}
+                  >
+                    {n.albumArt && (
+                      <img
+                        src={n.albumArt}
+                        alt={n.songTitle}
+                        className="w-8 h-8 border border-black object-cover flex-shrink-0"
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold truncate">{n.songTitle}</p>
+                      <p className="text-[10px] text-gray-500 truncate">{n.artist} · {fmtDate(n.postDate)}</p>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function ProfilePage() {
   const [selectedPost, setSelectedPost] = useState<SongPost | null>(null);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -133,6 +357,7 @@ export function ProfilePage() {
   const [profileUser, setProfileUser] = useState(null);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [showDirectory, setShowDirectory] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [editBio, setEditBio] = useState('');
   const [editAvatarUrl, setEditAvatarUrl] = useState('');
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -279,6 +504,40 @@ export function ProfilePage() {
   return (
     <div className="min-h-screen bg-white">
       {showDirectory && <UserDirectoryPanel onClose={() => setShowDirectory(false)} />}
+      {showNotifications && isOwnProfile && (
+        <NotificationsPanel
+          currentUserId={currentUser.id}
+          onClose={() => setShowNotifications(false)}
+          onPostClick={(info) => {
+            setSelectedPost({
+              id: info.date,
+              userId: currentUser.id,
+              user: { id: '', username: '', displayName: '', bio: '', avatarUrl: '', followers: 0, following: 0 },
+              date: info.date,
+              albumArt: info.albumArt,
+              songTitle: info.songTitle,
+              artist: info.artist,
+              spotifyUrl: info.spotifyUrl,
+              caption: info.caption,
+              reactions: [],
+              comments: [],
+            } as SongPost);
+            setShowNotifications(false);
+          }}
+        />
+      )}
+
+      {/* Floating notifications button — only visible on own profile, above USERS button */}
+      {isOwnProfile && (
+        <button
+          onClick={() => setShowNotifications(true)}
+          style={{ position: 'fixed', bottom: '130px', left: '16px', zIndex: 9999 }}
+          className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-3 py-2 text-xs font-bold shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-0.5 hover:translate-y-0.5 transition-transform flex items-center gap-1.5"
+        >
+          <Bell className="w-3.5 h-3.5" />
+          NOTIFS
+        </button>
+      )}
 
       {/* Floating users button — bottom-left above nav, mirrors contact button */}
       <button
