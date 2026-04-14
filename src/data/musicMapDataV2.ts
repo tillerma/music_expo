@@ -106,15 +106,13 @@ function computePCA2D(X: number[][]): [number, number][] {
 
 function computeUMAP2D(X: number[][]): [number, number][] {
   const n = X.length;
-  // More neighbours = more global structure captured; clamp generously
-  const nNeighbors = Math.max(3, Math.min(n - 1, Math.ceil(n * 0.6)));
+  const nNeighbors = Math.max(2, Math.min(15, n - 1));
 
   const umap = new UMAP({
     nComponents: 2,
     nNeighbors,
-    minDist: 0.05,   // tight intra-cluster packing
-    spread: 2.0,     // wide inter-cluster gaps
-    nEpochs: 400,
+    minDist: 0.3,
+    nEpochs: 200,
   });
 
   const embedding = umap.fit(X);
@@ -123,17 +121,14 @@ function computeUMAP2D(X: number[][]): [number, number][] {
 
 // ─── Layout helpers ───────────────────────────────────────────────────────────
 
-/**
- * Normalize coords so the widest axis spans [-targetHalf, targetHalf].
- * Smaller target = clusters stay visually compact.
- */
-function normalizeCoords(coords: [number, number][], targetHalf = 4): [number, number][] {
+/** Normalize coords so the widest axis spans [-5, 5] */
+function normalizeCoords(coords: [number, number][]): [number, number][] {
   if (coords.length <= 1) return coords.map(() => [0, 0] as [number, number]);
   const xs = coords.map(c => c[0]), ys = coords.map(c => c[1]);
   const span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys), 0.001);
   const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
   const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
-  return coords.map(([x, y]) => [(x - cx) / span * (targetHalf * 2), (y - cy) / span * (targetHalf * 2)]);
+  return coords.map(([x, y]) => [(x - cx) / span * 10, (y - cy) / span * 10]);
 }
 
 /**
@@ -328,21 +323,14 @@ export function useMusicMapV2(
           coords = [[0, 0]];
           algorithm = 'trivial';
         } else {
-          const raw = taggedPosts.map(p =>
+          const featureMatrix = taggedPosts.map(p =>
             vocab.map(v => {
               const t = p.tags.find(t => t.name === v);
               return t ? t.count : 0;
             }),
           );
-          // L2-normalise each row so UMAP uses cosine-like similarity.
-          // Without this, songs with many high-count tags dominate; normalised
-          // vectors spread out by tag *distribution*, revealing real clusters.
-          const featureMatrix = raw.map(row => {
-            const norm = Math.sqrt(row.reduce((s, v) => s + v * v, 0)) || 1;
-            return row.map(v => v / norm);
-          });
 
-          if (taggedPosts.length >= 6) {
+          if (taggedPosts.length >= 4) {
             try {
               console.log('[MusicMap] Running UMAP...');
               coords = computeUMAP2D(featureMatrix);
@@ -356,10 +344,11 @@ export function useMusicMapV2(
             algorithm = 'pca';
           }
 
-          // Normalize to [-4, 4] to keep clusters visually compact.
-          // minDist = 1.0 ≈ just enough to prevent dot overlap at fit-all scale.
+          // Normalize to [-5, 5] then separate overlapping points.
+          // minDist = 1.2 ≈ one dot diameter at typical fit-all scale (~40px/unit).
+          // 30 iterations is enough to separate coincident points without distorting cluster shape.
           coords = normalizeCoords(coords);
-          coords = resolveCollisions(coords, 1.0, 60);
+          coords = resolveCollisions(coords, 1.2, 30);
         }
 
         if (cancelled) return;

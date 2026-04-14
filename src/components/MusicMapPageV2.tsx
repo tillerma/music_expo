@@ -7,7 +7,6 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { useMusicMapV2, MapPoint, Tag, resolveCollisions } from '../data/musicMapDataV2';
 import { currentUser } from '../auth/currentUserInfo';
-import { avatarPalette, initials } from './UserAvatar';
 import { X, ZoomIn, ZoomOut, Crosshair } from 'lucide-react';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -48,7 +47,6 @@ function tagPalette(name: string) {
 }
 
 // ─── Tag chip ─────────────────────────────────────────────────────────────────
-
 function TagChip({ tag, onClick, active }: { tag: Tag; onClick?: () => void; active?: boolean }) {
   const p = tagPalette(tag.name);
   return (
@@ -92,9 +90,6 @@ function UserDot({ point, size, selected, highlighted, dimmed, isCurrentUser }: 
       : selected ? '3px 3px 0px 0px rgba(0,0,0,1)' : '2px 2px 0px 0px rgba(0,0,0,1)',
   };
 
-  const p = avatarPalette(point.user.username);
-  const letters = initials(point.user.displayName, point.user.username);
-
   const avatar = point.user.avatarUrl ? (
     <img
       src={point.user.avatarUrl}
@@ -104,17 +99,20 @@ function UserDot({ point, size, selected, highlighted, dimmed, isCurrentUser }: 
       style={baseStyle}
       onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
     />
-  ) : (
-    <div style={{
-      ...baseStyle,
-      background: p.bg, color: p.text,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: Math.round(size * 0.35), fontWeight: 700,
-      userSelect: 'none',
-    }}>
-      {letters}
-    </div>
-  );
+  ) : (() => {
+    const p = tagPalette(point.user.username);
+    return (
+      <div style={{
+        ...baseStyle,
+        background: p.bg, color: p.text,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: Math.round(size * 0.35), fontWeight: 700,
+        userSelect: 'none',
+      }}>
+        {point.user.username.slice(0, 2).toUpperCase()}
+      </div>
+    );
+  })();
 
   if (!isCurrentUser) return avatar;
 
@@ -167,12 +165,12 @@ export function MusicMapPageV2() {
     setTransform({ ...t });
   }, []);
 
-  // ── Pointer tracking (mouse + touch via Pointer Events API) ───────────────
-  const activePointers = useRef<Map<number, { x: number; y: number }>>(new Map());
-  const dragStart      = useRef({ x: 0, y: 0 });
-  const tAtDragStart   = useRef<Transform>({ x: 0, y: 0, scale: 1 });
-  const didDrag        = useRef(false);
-  const lastPinchDist  = useRef<number | null>(null);
+  // ── Drag ───────────────────────────────────────────────────────────────────
+  const isDown       = useRef(false);
+  const dragStart    = useRef({ x: 0, y: 0 });
+  const tAtDragStart = useRef<Transform>({ x: 0, y: 0, scale: 1 });
+  const didDrag      = useRef(false);
+  const lastPinch    = useRef<number | null>(null);
 
   // ── UI state ───────────────────────────────────────────────────────────────
   const [containerSize, setContainerSize] = useState({ w: 800, h: 600 });
@@ -274,7 +272,37 @@ export function MusicMapPageV2() {
     return () => window.removeEventListener('keydown', onKey);
   }, [containerSize, syncTransform]);
 
-  // (touch handled via Pointer Events below)
+  // ── Touch pinch/pan ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onTouchMove = (e: TouchEvent) => {
+      e.preventDefault();
+      if (e.touches.length === 2 && lastPinch.current !== null) {
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY,
+        );
+        const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+        const rect = el.getBoundingClientRect();
+        const fx = midX - rect.left, fy = midY - rect.top;
+        const t = transformRef.current;
+        const ns = clampZoom(t.scale * dist / lastPinch.current);
+        const r = ns / t.scale;
+        syncTransform({ scale: ns, x: fx - r * (fx - t.x), y: fy - r * (fy - t.y) });
+        lastPinch.current = dist;
+      } else if (e.touches.length === 1 && isDown.current) {
+        const ddx = e.touches[0].clientX - dragStart.current.x;
+        const ddy = e.touches[0].clientY - dragStart.current.y;
+        if (!didDrag.current && Math.hypot(ddx, ddy) < DRAG_THRESH) return;
+        didDrag.current = true;
+        syncTransform({ ...tAtDragStart.current, x: tAtDragStart.current.x + ddx, y: tAtDragStart.current.y + ddy });
+      }
+    };
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    return () => el.removeEventListener('touchmove', onTouchMove);
+  }, [syncTransform]);
 
   // ── Fit all ────────────────────────────────────────────────────────────────
   const fitAllTransform = useCallback((padding = 0.14): Transform => {
@@ -284,9 +312,7 @@ export function MusicMapPageV2() {
     const minX = Math.min(...xs), maxX = Math.max(...xs);
     const minY = Math.min(...ys), maxY = Math.max(...ys);
     const dataW = maxX - minX || 1, dataH = maxY - minY || 1;
-    const rect = containerRef.current?.getBoundingClientRect();
-    const w = rect?.width ?? containerSize.w;
-    const h = rect?.height ?? containerSize.h;
+    const { w, h } = containerSize;
     // scale = pixels per data unit; no arbitrary cap, just clamp to zoom limits
     const scale = clampZoom(Math.min(
       (w * (1 - 2 * padding)) / dataW,
@@ -316,56 +342,37 @@ export function MusicMapPageV2() {
 
   useEffect(() => { hasFitted.current = false; }, [viewMode]);
 
-  // ── Pointer events — handles mouse + touch + stylus uniformly ─────────────
-  // touch-action:none on the canvas tells the browser to hand all touch input
-  // here instead of scrolling/zooming the page — works on iOS Safari & Android.
-  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0 && e.pointerType === 'mouse') return;
-    e.currentTarget.setPointerCapture(e.pointerId);
-    activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  // ── Mouse ──────────────────────────────────────────────────────────────────
+  const onMouseDown  = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    isDown.current = true; didDrag.current = false;
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    tAtDragStart.current = { ...transformRef.current };
+    setIsCursorGrab(true);
+  };
+  const onMouseMove  = (e: React.MouseEvent) => {
+    if (!isDown.current) return;
+    const dx = e.clientX - dragStart.current.x, dy = e.clientY - dragStart.current.y;
+    if (!didDrag.current && Math.hypot(dx, dy) < DRAG_THRESH) return;
+    didDrag.current = true;
+    syncTransform({ ...tAtDragStart.current, x: tAtDragStart.current.x + dx, y: tAtDragStart.current.y + dy });
+  };
+  const onMouseUp    = () => { isDown.current = false; setIsCursorGrab(false); };
+  const onMouseLeave = () => { isDown.current = false; setIsCursorGrab(false); };
 
-    if (activePointers.current.size === 1) {
-      didDrag.current = false;
-      dragStart.current = { x: e.clientX, y: e.clientY };
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      lastPinch.current = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY,
+      );
+    } else {
+      isDown.current = true; didDrag.current = false;
+      dragStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       tAtDragStart.current = { ...transformRef.current };
-      lastPinchDist.current = null;
-      setIsCursorGrab(true);
-    } else if (activePointers.current.size === 2) {
-      const pts = [...activePointers.current.values()];
-      lastPinchDist.current = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
     }
   };
-
-  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!activePointers.current.has(e.pointerId)) return;
-    activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-    if (activePointers.current.size === 2 && lastPinchDist.current !== null) {
-      const pts = [...activePointers.current.values()];
-      const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
-      const midX = (pts[0].x + pts[1].x) / 2;
-      const midY = (pts[0].y + pts[1].y) / 2;
-      const rect = containerRef.current!.getBoundingClientRect();
-      const fx = midX - rect.left, fy = midY - rect.top;
-      const t = transformRef.current;
-      const ns = clampZoom(t.scale * dist / lastPinchDist.current);
-      const r = ns / t.scale;
-      syncTransform({ scale: ns, x: fx - r * (fx - t.x), y: fy - r * (fy - t.y) });
-      lastPinchDist.current = dist;
-    } else if (activePointers.current.size === 1) {
-      const dx = e.clientX - dragStart.current.x;
-      const dy = e.clientY - dragStart.current.y;
-      if (!didDrag.current && Math.hypot(dx, dy) < DRAG_THRESH) return;
-      didDrag.current = true;
-      syncTransform({ ...tAtDragStart.current, x: tAtDragStart.current.x + dx, y: tAtDragStart.current.y + dy });
-    }
-  };
-
-  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    activePointers.current.delete(e.pointerId);
-    if (activePointers.current.size < 2) lastPinchDist.current = null;
-    if (activePointers.current.size === 0) setIsCursorGrab(false);
-  };
+  const onTouchEnd = () => { isDown.current = false; lastPinch.current = null; };
 
   const handleDotClick  = (e: React.MouseEvent, pt: MapPoint) => { e.stopPropagation(); if (!didDrag.current) { setSelectedPoint(pt); setHoveredPoint(null); } };
   const handleDotEnter  = (e: React.MouseEvent, pt: MapPoint) => { setHoveredPoint(pt); const r = containerRef.current!.getBoundingClientRect(); setTooltipPos({ x: e.clientX - r.left, y: e.clientY - r.top }); };
@@ -400,34 +407,42 @@ export function MusicMapPageV2() {
   }
 
   return (
-    <div className="flex flex-col bg-white" style={{ height: 'calc(100dvh - 64px)', overflow: 'hidden', touchAction: 'none' }}>
+    <div className="flex flex-col bg-white" style={{ height: 'calc(100dvh - 64px)' }}>
 
       {/* ── HEADER ── */}
       <div className="bg-white border-b-4 border-black flex-shrink-0">
-        <div className="px-3 py-2 sm:px-4 sm:py-3 flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <h1 className="text-lg sm:text-xl font-black tracking-tight">MUSIC MAP</h1>
-            <p className="text-[10px] text-gray-500 font-medium">
-              {points.length} posts
+        <div className="px-4 py-3 flex items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-black tracking-tight">MUSIC MAP</h1>
+            <p className="text-[11px] text-gray-500 font-medium">
+              {points.length} posts · scroll or +/- to zoom
               {algorithm && viewMode === 'cluster' && (
-                <span className="ml-1 font-black text-purple-600 uppercase">[{algorithm}]</span>
+                <span className="ml-2 font-black text-purple-600 uppercase">[{algorithm}]</span>
               )}
             </p>
           </div>
-          {/* View toggle */}
-          <div className="flex border-2 border-black overflow-hidden shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex-shrink-0">
-            <button
-              onClick={() => setViewMode('cluster')}
-              className={`px-3 py-1.5 text-[11px] font-black tracking-wider transition-colors ${viewMode === 'cluster' ? 'bg-black text-white' : 'bg-white text-black active:bg-gray-100'}`}
-            >
-              CLUSTER
-            </button>
-            <button
-              onClick={() => setViewMode('axis')}
-              className={`px-3 py-1.5 text-[11px] font-black tracking-wider border-l-2 border-black transition-colors ${viewMode === 'axis' ? 'bg-black text-white' : 'bg-white text-black active:bg-gray-100'}`}
-            >
-              AXIS
-            </button>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {/* View toggle */}
+            <div className="flex border-2 border-black overflow-hidden mr-1 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+              <button
+                onClick={() => setViewMode('cluster')}
+                className={`px-3 py-1.5 text-[11px] font-black tracking-wider transition-colors ${viewMode === 'cluster' ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-100'}`}
+              >
+                CLUSTER
+              </button>
+              <button
+                onClick={() => setViewMode('axis')}
+                className={`px-3 py-1.5 text-[11px] font-black tracking-wider border-l-2 border-black transition-colors ${viewMode === 'axis' ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-100'}`}
+              >
+                AXIS
+              </button>
+            </div>
+            <button onClick={zoomOut}   className="w-8 h-8 flex items-center justify-center border-2 border-black hover:bg-gray-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"><ZoomOut className="w-4 h-4" /></button>
+            <button onClick={resetView} className="w-8 h-8 flex items-center justify-center border-2 border-black hover:bg-gray-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"><Crosshair className="w-4 h-4" /></button>
+            <button onClick={zoomIn}    className="w-8 h-8 flex items-center justify-center border-2 border-black hover:bg-gray-100 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"><ZoomIn className="w-4 h-4" /></button>
+            <span className="text-[11px] font-mono font-bold text-gray-500 w-10 text-right tabular-nums">
+              {Math.round(transform.scale * 100)}%
+            </span>
           </div>
         </div>
       </div>
@@ -435,17 +450,15 @@ export function MusicMapPageV2() {
       {/* ── CLUSTER filter bar ── */}
       {viewMode === 'cluster' && globalTags.length > 0 && (
         <div className="flex-shrink-0 bg-white border-b-2 border-black">
-          <div className="px-3 sm:px-4 py-2 flex items-center gap-2 overflow-x-auto scrollbar-none" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="px-4 py-2 flex items-center gap-2 flex-wrap">
             <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex-shrink-0">Filter</span>
             {globalTags.map(tag => (
-              <div key={tag.name} className="flex-shrink-0">
-                <TagChip tag={tag} active={activeTag === tag.name}
-                  onClick={() => setActiveTag(prev => prev === tag.name ? null : tag.name)} />
-              </div>
+              <TagChip key={tag.name} tag={tag} active={activeTag === tag.name}
+                onClick={() => setActiveTag(prev => prev === tag.name ? null : tag.name)} />
             ))}
             {activeTag && (
               <button onClick={() => setActiveTag(null)}
-                className="text-[10px] font-bold text-gray-400 hover:text-black underline ml-1 flex-shrink-0">clear</button>
+                className="text-[10px] font-bold text-gray-400 hover:text-black underline ml-1">clear</button>
             )}
           </div>
         </div>
@@ -454,7 +467,7 @@ export function MusicMapPageV2() {
       {/* ── AXIS selectors ── */}
       {viewMode === 'axis' && (
         <div className="flex-shrink-0 bg-white border-b-2 border-black">
-          <div className="px-3 sm:px-4 py-2 flex items-center gap-3 sm:gap-4 overflow-x-auto scrollbar-none" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="px-4 py-2 flex items-center gap-4 flex-wrap">
             {[['X axis', xTag, setXTag], ['Y axis', yTag, setYTag]].map(([label, val, setter]) => (
               <div key={label as string} className="flex items-center gap-2">
                 <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{label as string}</span>
@@ -474,15 +487,17 @@ export function MusicMapPageV2() {
       )}
 
       {/* ── MAP CANVAS ── */}
-      <div className="flex-1 relative overflow-hidden min-h-0" style={{ touchAction: 'none' }}>
+      <div className="flex-1 relative overflow-hidden min-h-0">
         <div
           ref={containerRef}
           className="absolute inset-0 bg-gradient-to-br from-yellow-50 via-pink-50 to-blue-50"
           style={{ cursor: isCursorGrab ? 'grabbing' : 'grab', touchAction: 'none' }}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
+          onMouseDown={onMouseDown}
+          onMouseMove={onMouseMove}
+          onMouseUp={onMouseUp}
+          onMouseLeave={onMouseLeave}
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
         >
           {/* Grid — fixed 80px screen-space grid, shifts with pan */}
           <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity: 0.12 }}>
@@ -550,54 +565,25 @@ export function MusicMapPageV2() {
             );
           })}
 
-          {/* Tooltip — clamped to all four edges */}
-          {hoveredPoint && !selectedPoint && (() => {
-            const TW = 204, TH = 88;
-            const tipLeft = tooltipPos.x + 20 + TW > containerSize.w
-              ? tooltipPos.x - TW - 8
-              : tooltipPos.x + 20;
-            const tipTop = Math.max(4, Math.min(tooltipPos.y - 12, containerSize.h - TH - 4));
-            return (
-              <div
-                className="absolute pointer-events-none z-10 bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] px-3 py-2"
-                style={{ left: tipLeft, top: tipTop, width: TW }}
-              >
-                <p className="text-[12px] font-black leading-tight">{hoveredPoint.songTitle}</p>
-                <p className="text-[10px] text-gray-500 font-medium">{hoveredPoint.artist}</p>
-                <p className="text-[10px] font-bold text-gray-400">@{hoveredPoint.user.username}</p>
-                {hoveredPoint.tags.length > 0 && (
-                  <p className="text-[9px] text-gray-400 mt-0.5 font-medium">
-                    {hoveredPoint.tags.slice(0, 3).map(t => t.name).join(' · ')}
-                  </p>
-                )}
-              </div>
-            );
-          })()}
-        </div>
-
-        {/* ── FLOATING ZOOM CONTROLS ── */}
-        <div className="absolute bottom-4 right-4 flex flex-col gap-1 z-10 pointer-events-none">
-          <button
-            onClick={zoomIn}
-            className="w-10 h-10 flex items-center justify-center bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] hover:bg-gray-100 pointer-events-auto transition-transform"
-          >
-            <ZoomIn className="w-4 h-4" />
-          </button>
-          <button
-            onClick={resetView}
-            className="w-10 h-10 flex items-center justify-center bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] hover:bg-gray-100 pointer-events-auto transition-transform"
-          >
-            <Crosshair className="w-4 h-4" />
-          </button>
-          <button
-            onClick={zoomOut}
-            className="w-10 h-10 flex items-center justify-center bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] hover:bg-gray-100 pointer-events-auto transition-transform"
-          >
-            <ZoomOut className="w-4 h-4" />
-          </button>
-          <span className="text-[10px] font-mono font-bold text-gray-500 text-center tabular-nums mt-0.5">
-            {Math.round(transform.scale * 100)}%
-          </span>
+          {/* Tooltip */}
+          {hoveredPoint && !selectedPoint && (
+            <div
+              className="absolute pointer-events-none z-10 bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] px-3 py-2"
+              style={{
+                left: tooltipPos.x + 16, top: tooltipPos.y - 12,
+                transform: tooltipPos.x > containerSize.w - 200 ? 'translateX(-110%)' : undefined,
+              }}
+            >
+              <p className="text-[12px] font-black leading-tight">{hoveredPoint.songTitle}</p>
+              <p className="text-[10px] text-gray-500 font-medium">{hoveredPoint.artist}</p>
+              <p className="text-[10px] font-bold text-gray-400">@{hoveredPoint.user.username}</p>
+              {hoveredPoint.tags.length > 0 && (
+                <p className="text-[9px] text-gray-400 mt-0.5 font-medium">
+                  {hoveredPoint.tags.slice(0, 3).map(t => t.name).join(' · ')}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -608,7 +594,7 @@ export function MusicMapPageV2() {
           onClick={() => setSelectedPoint(null)}
         >
           <div
-            className="bg-white border-4 border-black p-4 sm:p-6 w-full max-w-md shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-h-[85vh] overflow-y-auto"
+            className="bg-white border-4 border-black p-6 w-full max-w-md shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
             onClick={e => e.stopPropagation()}
           >
             {/* Date + posted by */}
@@ -630,10 +616,10 @@ export function MusicMapPageV2() {
                 <img
                   src={selectedPoint.albumArt}
                   alt={selectedPoint.songTitle}
-                  className="w-24 h-24 sm:w-32 sm:h-32 border-2 border-black object-cover shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex-shrink-0"
+                  className="w-32 h-32 border-2 border-black object-cover shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex-shrink-0"
                 />
               ) : (
-                <div className="w-24 h-24 sm:w-32 sm:h-32 border-2 border-black bg-gray-100 flex items-center justify-center flex-shrink-0 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <div className="w-32 h-32 border-2 border-black bg-gray-100 flex items-center justify-center flex-shrink-0 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                   <span className="text-3xl">🎵</span>
                 </div>
               )}

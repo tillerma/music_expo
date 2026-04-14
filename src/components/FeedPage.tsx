@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { UserAvatar } from './UserAvatar';
 import { isLoggedIn, logout } from '../utils/spotifyAuth';
 import { currentUser } from '../auth/currentUserInfo';
 // import { currentUser } from '../data/mockData';
@@ -129,7 +128,7 @@ export function FeedPage() {
           username: post.profiles?.username ?? post.user_id,
           displayName: post.profiles?.display_name ?? post.user_id,
           bio: post.profiles?.bio ?? '',
-          avatarUrl: post.profiles?.avatar_url ?? '',
+          avatarUrl: post.profiles?.avatar_url ?? 'https://placehold.co/100x100',
           followers: post.profiles?.followers ?? 0,
           following: post.profiles?.following ?? 0,
         },
@@ -153,7 +152,7 @@ export function FeedPage() {
             username: comment.profiles?.username ?? comment.user_id,
             displayName: comment.profiles?.display_name ?? comment.profiles?.username ?? comment.user_id,
             bio: '',
-            avatarUrl: comment.profiles?.avatar_url ?? '',
+            avatarUrl: comment.profiles?.avatar_url ?? 'https://placehold.co/100x100',
             followers: 0,
             following: 0,
           },
@@ -437,22 +436,13 @@ export function FeedPage() {
               <p className="text-sm text-gray-600">{formattedDate}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowWelcome(true)}
-              title="App info"
-              className="w-8 h-8 flex items-center justify-center border-2 border-black font-bold text-sm hover:bg-gray-100 transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-            >
-              ⓘ
-            </button>
-            <button
-              onClick={() => !hasPostedToday && setShowNewPost(true)}
-              disabled={hasPostedToday}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 border-2 border-black font-bold hover:translate-x-0.5 hover:translate-y-0.5 transition-transform shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-x-0 disabled:translate-y-0"
-            >
-              {hasPostedToday ? '✓ POSTED TODAY' : '+ POST'}
-            </button>
-          </div>
+          <button
+            onClick={() => !hasPostedToday && setShowNewPost(true)}
+            disabled={hasPostedToday}
+            className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 border-2 border-black font-bold hover:translate-x-0.5 hover:translate-y-0.5 transition-transform shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-x-0 disabled:translate-y-0"
+          >
+            {hasPostedToday ? '✓ POSTED TODAY' : '+ POST'}
+          </button>
         </div>
         
         {/* Today's Emoji Set */}
@@ -566,7 +556,10 @@ export function FeedPage() {
 
       {/* Welcome modal for new users */}
       {showWelcome && (
-        <WelcomeModal onClose={() => setShowWelcome(false)} />
+        <WelcomeModal onClose={() => {
+          localStorage.removeItem('lyra_show_welcome');
+          setShowWelcome(false);
+        }} />
       )}
 
       {/* Floating contact button */}
@@ -585,84 +578,87 @@ function WelcomeModal({ onClose }: { onClose: () => void }) {
   const CONTACT_HREF = 'mailto:tillerma@umich.edu,ishanid@umich.edu,eshanair@umich.edu?subject=LYRA%20Support';
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      {/* flex-col so we can pin header + footer while only the middle scrolls */}
-      <div className="bg-white border-4 border-black w-full max-w-md shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col" style={{ maxHeight: '80vh' }}>
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6">
+      <div className="bg-white border-4 border-black w-full max-w-2xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
 
-        {/* Pinned header */}
-        <div className="bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-4 border-b-4 border-black flex-shrink-0">
-          <h2 className="text-xl font-bold text-white">WELCOME TO LYRA</h2>
-          <p className="text-white/80 text-xs mt-0.5">Here's everything you need to know to get started.</p>
+        {/* Header */}
+        <div className="bg-gradient-to-r from-purple-500 to-pink-500 px-8 py-6 border-2 border-black text-center flex flex-col items-center">
+          <h2 className="text-3xl font-bold text-white tracking-tight">WELCOME TO LYRA</h2>
+          <p className="text-white/80 font-bold text-base mt-1">Here's everything you need to know to get started.</p>
         </div>
 
-        {/* Scrollable content */}
-        <div className="overflow-y-auto flex-1 px-6 divide-y-2 divide-gray-200">
+        <div className="px-10 py-4 divide-y-2 divide-gray-200">
 
-          <div className="py-5">
-            <h3 className="font-bold text-sm mb-2">🎵 What is LYRA?</h3>
-            <p className="text-xs text-gray-600 leading-relaxed">LYRA is a social music diary. Every day you share one song that's on your mind and discover what the people around you are listening to!</p>
+          {/* What is LYRA */}
+          <div className="py-8">
+            <h3 className="font-bold text-lg mb-3">🎵 What is LYRA?</h3>
+            <p className="text-xs text-black-600 leading-loose">LYRA is a social music diary. Every day you share one song that's on your mind and discover what the people around you are listening to!</p>
+            <p className="text-xs text-black-600 leading-loose mb-3"> </p>
           </div>
 
-          <div className="py-5">
-            <h3 className="font-bold text-sm mb-3">🗺 Pages you can access</h3>
-            <ul className="space-y-2.5">
-              <li className="flex gap-3">
-                <span className="font-bold text-black text-xs min-w-[80px]">Feed</span>
-                <span className="text-xs text-gray-600 leading-relaxed">Today's posts from everyone. React with the daily emoji palette or leave a comment on any post.</span>
+          {/* Pages */}
+          <div className="py-8">
+            <p className="text-xs text-black-600 leading-loose mb-3"> </p>
+            <h3 className="font-bold text-lg mb-4">🗺 Pages you can access</h3>
+            <ul className="space-y-4">
+              <li className="flex gap-4">
+                <span className="font-bold text-black min-w-[90px] text-xs">Feed</span>
+                <span className="text-xs text-black-600 leading-loose">Today's posts from everyone. React with the daily emoji palette or leave a comment on any post.</span>
               </li>
-              <li className="flex gap-3">
-                <span className="font-bold text-black text-xs min-w-[80px]">Music Map</span>
-                <span className="text-xs text-gray-600 leading-relaxed">Daily songs plotted by mood and energy. Explore what genres and vibes are trending today.</span>
+              <li className="flex gap-4">
+                <span className="font-bold text-black min-w-[90px] text-xs">Music Map</span>
+                <span className="text-xs text-black-600 leading-loose">Daily songs plotted by mood and energy. Explore what genres and vibes are trending today.</span>
               </li>
-              <li className="flex gap-3">
-                <span className="font-bold text-black text-xs min-w-[80px]">Playlists</span>
-                <span className="text-xs text-gray-600 leading-relaxed">Curated playlists built from the community's posts and reactions.</span>
+              <li className="flex gap-4">
+                <span className="font-bold text-black min-w-[90px] text-xs">Playlists</span>
+                <span className="text-xs text-black-600 leading-loose">Curated playlists built from the community's posts and reactions.</span>
               </li>
-              <li className="flex gap-3">
-                <span className="font-bold text-black text-xs min-w-[80px]">Profile</span>
-                <span className="text-xs text-gray-600 leading-relaxed">Your listening calendar — every song you've ever posted, organized by date.</span>
+              <li className="flex gap-4">
+                <span className="font-bold text-black min-w-[90px] text-xs">Profile</span>
+                <span className="text-xs text-gray-600 leading-loose">Your listening calendar — every song you've ever posted, organized by date.</span>
               </li>
             </ul>
+            <p className="text-xs text-black-600 leading-loose mb-3"> </p>
           </div>
 
-          <div className="py-5">
-            <h3 className="font-bold text-sm mb-2">📅 Posting once a day</h3>
-            <p className="text-xs text-gray-600 leading-relaxed">You get <span className="font-bold text-black">one post per day</span>. Hit <span className="font-bold text-black">+ POST</span> in the top right, search Spotify for a song, write a caption, and submit. Once posted the button shows <span className="font-bold text-black">✓ POSTED TODAY</span> — come back tomorrow for your next one.</p>
+          {/* Posting */}
+          <div className="py-8">
+            <p className="text-xs text-black-600 leading-loose mb-3"> </p>
+            <h3 className="font-bold text-lg mb-3">📅 Posting once a day</h3>
+            <p className="text-xs text-black-600 leading-loose">You get <span className="font-bold text-black">one post per day</span>. Hit <span className="font-bold text-black">+ POST</span> in the top right, search Spotify for a song, write a caption (up to 140 characters), and submit. Once you've posted the button shows <span className="font-bold text-black">✓ POSTED TODAY</span> — come back tomorrow for your next one.</p>
+            <p className="text-xs text-black-600 leading-loose mb-3"> </p>
           </div>
 
-          <div className="py-5">
-            <h3 className="font-bold text-sm mb-2">💬 Types of comments</h3>
-            <p className="text-xs text-gray-600 leading-relaxed mb-2">Tap the comments toggle on any post, then hit <span className="font-bold text-black">+ ADD COMMENT</span>. You can leave:</p>
-            <ul className="space-y-1 text-xs text-gray-600 ml-2">
-              <li>• A <span className="font-bold text-black">text reply</span> — share a thought about the song</li>
-              <li>• A <span className="font-bold text-black">song reply</span> — attach a Spotify track to your comment</li>
-              <li>• Or <span className="font-bold text-black">both</span> together</li>
+          {/* Comments */}
+          <div className="py-8">
+            <h3 className="font-bold text-lg mb-3">💬 Types of comments</h3>
+            <p className="text-xs text-black-600 leading-loose mb-3">Tap the comments toggle on any post, then hit <span className="font-bold text-black">+ ADD COMMENT</span>. You can leave:</p>
+            <ul className="space-y-2 text-xs text-black-600 ml-2">
+              <li className="leading-loose">• A <span className="font-bold text-black">text reply</span> — share a thought about the song</li>
+              <li className="leading-loose">• A <span className="font-bold text-black">song reply</span> — attach a track from Spotify to your comment</li>
+              <li className="leading-loose">• Or <span className="font-bold text-black">both</span> — text and a song together</li>
             </ul>
+            <p className="text-xs text-black-600 leading-loose mb-3"> </p>
           </div>
 
-          <div className="py-5">
-            <h3 className="font-bold text-sm mb-2">🛠 Running into problems?</h3>
-            <p className="text-xs text-gray-600 leading-relaxed mb-3">Use the <span className="font-bold text-black">CONTACT</span> button in the bottom-right corner of the page to email the LYRA team directly.</p>
-            <a
-              href={CONTACT_HREF}
-              className="inline-block bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-3 py-1.5 text-xs font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-0.5 hover:translate-y-0.5 transition-transform"
-            >
-              CONTACT DEVELOPERS
-            </a>
+          {/* Contact */}
+          <div className="py-8">
+            <h3 className="font-bold text-lg mb-3">🛠 Running into problems?</h3>
+            <p className="text-xs text-black-600 leading-loose mb-4">Use the <span className="font-bold text-black">CONTACT</span> button fixed to the bottom-right corner of the page at any time to email the LYRA team directly.</p>
           </div>
 
         </div>
 
-        {/* Pinned footer button — always visible */}
-        <div className="px-6 py-4 border-t-4 border-black flex-shrink-0">
+        <div className="px-10 pb-10 pt-2">
           <button
             onClick={onClose}
-            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-4 py-3 font-bold hover:translate-x-0.5 hover:translate-y-0.5 transition-transform shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
+            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white border-2 border-black px-4 py-4 font-bold text-lg hover:translate-x-0.5 hover:translate-y-0.5 transition-transform shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
           >
             LET'S GO →
           </button>
         </div>
-
+      </div>
       </div>
     </div>
   );
@@ -723,12 +719,10 @@ function SongPostComponent({ post, onReaction, onAddComment, onDeleteComment }: 
     <div className="px-4 py-6 bg-white">
       {/* User Info */}
       <div className="flex items-center gap-3 mb-4">
-        <UserAvatar
-          avatarUrl={post.user.avatarUrl}
-          displayName={post.user.displayName}
-          username={post.user.username}
-          size={40}
-          className="border-2 border-black"
+        <img
+          src={post.user.avatarUrl}
+          alt={post.user.username}
+          className="w-10 h-10 border-2 border-black object-cover"
         />
         <div className="flex-1">
           <p className="font-bold">{post.user.displayName}</p>
@@ -910,12 +904,10 @@ function CommentComponent({ comment, onDelete }: CommentComponentProps) {
   return (
     <div className="flex gap-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
       {/* Avatar */}
-      <UserAvatar
-        avatarUrl={comment.user.avatarUrl}
-        displayName={comment.user.displayName}
-        username={comment.user.username}
-        size={32}
-        className="border-2 border-black flex-shrink-0 mt-0.5"
+      <img
+        src={comment.user.avatarUrl}
+        alt={comment.user.username}
+        className="w-8 h-8 border-2 border-black object-cover flex-shrink-0 mt-0.5"
       />
 
       {/* Body */}
