@@ -178,8 +178,43 @@ export function MusicMapPageV2() {
   const [selectedPoint, setSelectedPoint] = useState<MapPoint | null>(null);
   const [hoveredPoint,  setHoveredPoint]  = useState<MapPoint | null>(null);
   const [tooltipPos,    setTooltipPos]    = useState({ x: 0, y: 0 });
-  const [activeTag,     setActiveTag]     = useState<string | null>(null);
+  const [activeTags,    setActiveTags]    = useState<string[]>([]);
+  const [filterOpen,    setFilterOpen]    = useState(false);
   const [isCursorGrab,  setIsCursorGrab]  = useState(false);
+
+  // Close tag dropdown when clicking outside it
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!filterOpen) return;
+    const handler = (e: PointerEvent) => {
+      if (!filterDropdownRef.current?.contains(e.target as Node)) setFilterOpen(false);
+    };
+    document.addEventListener('pointerdown', handler, { capture: true });
+    return () => document.removeEventListener('pointerdown', handler, { capture: true });
+  }, [filterOpen]);
+
+  // ── Filter bar drag-scroll (works even though parent has touchAction:none) ──
+  const filterBarRef = useRef<HTMLDivElement>(null);
+  const filterDrag = useRef<{ pointerId: number; startX: number; scrollLeft: number } | null>(null);
+
+  const onFilterPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Only start drag tracking when the user touches the bar itself (not a chip button)
+    const el = filterBarRef.current;
+    if (!el) return;
+    // Do NOT setPointerCapture — that would swallow clicks on child buttons
+    filterDrag.current = { pointerId: e.pointerId, startX: e.clientX, scrollLeft: el.scrollLeft };
+  };
+  const onFilterPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!filterDrag.current || filterDrag.current.pointerId !== e.pointerId) return;
+    const el = filterBarRef.current;
+    if (!el) return;
+    const dx = e.clientX - filterDrag.current.startX;
+    // Only scroll after a small threshold so single taps on chips aren't jittered
+    if (Math.abs(dx) > 4) {
+      el.scrollLeft = filterDrag.current.scrollLeft - dx;
+    }
+  };
+  const onFilterPointerUp = () => { filterDrag.current = null; };
 
   const globalTags = useMemo<Tag[]>(() => allTags.slice(0, 10), [allTags]);
 
@@ -193,11 +228,15 @@ export function MusicMapPageV2() {
     const maxX = Math.max(...xScores, 1);
     const maxY = Math.max(...yScores, 1);
 
-    const raw: [number, number][] = points.map((_, i) => [
-      Math.sqrt(xScores[i] / maxX) * 10 - 5,
-      Math.sqrt(yScores[i] / maxY) * 10 - 5,
-    ]);
-    const resolved = resolveCollisions(raw, 1.2, 30);
+    // Pre-jitter with golden angle so coincident/colinear points spread circularly
+    const raw: [number, number][] = points.map((_, i) => {
+      const angle = i * 2.399; // golden angle
+      return [
+        Math.sqrt(xScores[i] / maxX) * 10 - 5 + Math.cos(angle) * 0.08,
+        Math.sqrt(yScores[i] / maxY) * 10 - 5 + Math.sin(angle) * 0.08,
+      ];
+    });
+    const resolved = resolveCollisions(raw, 1.2, 80);
     points.forEach((p, i) => result.set(p.id, { ax: resolved[i][0], ay: resolved[i][1] }));
     return result;
   }, [points, xTag, yTag]);
@@ -366,7 +405,24 @@ export function MusicMapPageV2() {
     if (activePointers.current.size === 0) setIsCursorGrab(false);
   };
 
-  const handleDotClick  = (e: React.MouseEvent, pt: MapPoint) => { e.stopPropagation(); if (!didDrag.current) { setSelectedPoint(pt); setHoveredPoint(null); } };
+  // Track where each pointer went down ON a dot so we can detect a real tap
+  // (not a drag that happened to end over a dot). Works on mouse + touch.
+  const dotTapStart = useRef<Map<number, { x: number; y: number }>>(new Map());
+
+  const handleDotPointerDown = (e: React.PointerEvent, _pt: MapPoint) => {
+    e.stopPropagation(); // prevent container from starting a pan
+    dotTapStart.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  };
+
+  const handleDotPointerUp = (e: React.PointerEvent, pt: MapPoint) => {
+    const start = dotTapStart.current.get(e.pointerId);
+    dotTapStart.current.delete(e.pointerId);
+    if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) < DRAG_THRESH) {
+      setSelectedPoint(pt);
+      setHoveredPoint(null);
+    }
+  };
+
   const handleDotEnter  = (e: React.MouseEvent, pt: MapPoint) => { setHoveredPoint(pt); const r = containerRef.current!.getBoundingClientRect(); setTooltipPos({ x: e.clientX - r.left, y: e.clientY - r.top }); };
   const handleDotMove   = (e: React.MouseEvent)                => { const r = containerRef.current!.getBoundingClientRect(); setTooltipPos({ x: e.clientX - r.left, y: e.clientY - r.top }); };
   const handleDotLeave  = ()                                   => setHoveredPoint(null);
@@ -433,27 +489,54 @@ export function MusicMapPageV2() {
 
       {/* ── CLUSTER filter bar ── */}
       {viewMode === 'cluster' && globalTags.length > 0 && (
-        <div className="flex-shrink-0 bg-white border-b-2 border-black">
-          <div className="px-3 sm:px-4 py-2 flex items-center gap-2 overflow-x-auto scrollbar-none" style={{ WebkitOverflowScrolling: 'touch' }}>
-            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex-shrink-0">Filter</span>
-            {globalTags.map(tag => (
-              <div key={tag.name} className="flex-shrink-0">
-                <TagChip tag={tag} active={activeTag === tag.name}
-                  onClick={() => setActiveTag(prev => prev === tag.name ? null : tag.name)} />
+        <div className="flex-shrink-0 bg-white border-b-2 border-black px-3 sm:px-4 py-2 flex items-center gap-2">
+          <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex-shrink-0">Filter</span>
+          <div className="relative" ref={filterDropdownRef}>
+            <button
+              onClick={() => setFilterOpen(p => !p)}
+              className="text-xs font-bold border-2 border-black px-2 py-1 bg-yellow-50 focus:outline-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex items-center gap-1"
+            >
+              {activeTags.length === 0 ? 'All tags' : `${activeTags.length} tag${activeTags.length > 1 ? 's' : ''} selected`}
+              <span className="text-gray-400 text-[10px]">▾</span>
+            </button>
+            {filterOpen && (
+              <div className="absolute top-full left-0 mt-1 bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] z-20 min-w-[160px] max-h-52 overflow-y-auto">
+                {globalTags.map(tag => (
+                  <label key={tag.name} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={activeTags.includes(tag.name)}
+                      onChange={() => setActiveTags(prev =>
+                        prev.includes(tag.name) ? prev.filter(t => t !== tag.name) : [...prev, tag.name]
+                      )}
+                      className="w-3 h-3 accent-purple-600"
+                    />
+                    <span className="text-xs font-bold">{tag.name}</span>
+                  </label>
+                ))}
               </div>
-            ))}
-            {activeTag && (
-              <button onClick={() => setActiveTag(null)}
-                className="text-[10px] font-bold text-gray-400 hover:text-black underline ml-1 flex-shrink-0">clear</button>
             )}
           </div>
+          {activeTags.length > 0 && (
+            <button onClick={() => setActiveTags([])}
+              className="text-[10px] font-bold text-gray-400 hover:text-black underline flex-shrink-0">clear</button>
+          )}
         </div>
       )}
 
       {/* ── AXIS selectors ── */}
       {viewMode === 'axis' && (
-        <div className="flex-shrink-0 bg-white border-b-2 border-black">
-          <div className="px-3 sm:px-4 py-2 flex items-center gap-3 sm:gap-4 overflow-x-auto scrollbar-none" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div className="flex-shrink-0 bg-white border-b-2 border-black relative">
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent z-10" />
+          <div
+            ref={filterBarRef}
+            className="px-3 sm:px-4 py-2 flex items-center gap-3 sm:gap-4 overflow-x-auto"
+            style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            onPointerDown={onFilterPointerDown}
+            onPointerMove={onFilterPointerMove}
+            onPointerUp={onFilterPointerUp}
+            onPointerCancel={onFilterPointerUp}
+          >
             {[['X axis', xTag, setXTag], ['Y axis', yTag, setYTag]].map(([label, val, setter]) => (
               <div key={label as string} className="flex items-center gap-2">
                 <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{label as string}</span>
@@ -463,7 +546,7 @@ export function MusicMapPageV2() {
                   className="text-xs font-bold border-2 border-black px-2 py-1 bg-yellow-50 focus:outline-none shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
                 >
                   {allTags.map(t => (
-                    <option key={t.name} value={t.name}>{t.name} ({t.count})</option>
+                    <option key={t.name} value={t.name}>{t.name}</option>
                   ))}
                 </select>
               </div>
@@ -523,9 +606,9 @@ export function MusicMapPageV2() {
             const { sx, sy } = dataToScreen(x, y, transform, containerSize.w, containerSize.h);
             const isSelected    = selectedPoint?.id === pt.id;
             const isCurrentUserNode = pt.user.id === currentUser.id;
-            const hasTag        = !activeTag || pt.tags.some(t => t.name === activeTag);
-            const dimmed        = viewMode === 'cluster' && !!activeTag && !hasTag;
-            const highlighted   = viewMode === 'cluster' && !!activeTag && hasTag;
+            const hasTag        = activeTags.length === 0 || pt.tags.some(t => activeTags.includes(t.name));
+            const dimmed        = viewMode === 'cluster' && activeTags.length > 0 && !hasTag;
+            const highlighted   = viewMode === 'cluster' && activeTags.length > 0 && hasTag;
             const size          = isSelected ? Math.round(DOT_SIZE * 1.35) : DOT_SIZE;
 
             return (
@@ -538,8 +621,8 @@ export function MusicMapPageV2() {
                   zIndex: isSelected ? 4 : 2,
                   transition: 'left 0.35s cubic-bezier(0.34,1.56,0.64,1), top 0.35s cubic-bezier(0.34,1.56,0.64,1)',
                 }}
-                onPointerDown={e => e.stopPropagation()}
-                onClick={e => handleDotClick(e, pt)}
+                onPointerDown={e => handleDotPointerDown(e, pt)}
+                onPointerUp={e => handleDotPointerUp(e, pt)}
                 onMouseEnter={e => handleDotEnter(e, pt)}
                 onMouseMove={handleDotMove}
                 onMouseLeave={handleDotLeave}
@@ -607,9 +690,18 @@ export function MusicMapPageV2() {
           onClick={() => setSelectedPoint(null)}
         >
           <div
-            className="bg-white border-4 border-black p-6 w-full max-w-md shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
+            className="bg-white border-4 border-black p-6 w-full max-w-md shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative overflow-y-auto"
+            style={{ maxHeight: '90dvh' }}
             onClick={e => e.stopPropagation()}
           >
+            {/* X close button */}
+            <button
+              onClick={() => setSelectedPoint(null)}
+              className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center bg-gray-100 border-2 border-black font-bold text-sm hover:bg-gray-200 z-10"
+            >
+              ✕
+            </button>
+
             {/* User row */}
             <div className="flex items-center gap-3 mb-4">
               <Link to={`/profile/${selectedPoint.user.username}`} onClick={() => setSelectedPoint(null)}>
@@ -680,9 +772,11 @@ export function MusicMapPageV2() {
             {selectedPoint.tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-4">
                 {selectedPoint.tags.map(tag => (
-                  <TagChip key={tag.name} tag={tag} active={activeTag === tag.name}
+                  <TagChip key={tag.name} tag={tag} active={activeTags.includes(tag.name)}
                     onClick={() => {
-                      setActiveTag(prev => prev === tag.name ? null : tag.name);
+                      setActiveTags(prev =>
+                        prev.includes(tag.name) ? prev.filter(t => t !== tag.name) : [...prev, tag.name]
+                      );
                       setSelectedPoint(null);
                       if (viewMode !== 'cluster') setViewMode('cluster');
                     }} />
@@ -690,13 +784,6 @@ export function MusicMapPageV2() {
               </div>
             )}
 
-            {/* Close — matches calendar popup */}
-            <button
-              onClick={() => setSelectedPoint(null)}
-              className="w-full bg-gray-200 border-2 border-black px-4 py-2 font-bold hover:bg-gray-300 transition-colors"
-            >
-              CLOSE
-            </button>
           </div>
         </div>
       )}

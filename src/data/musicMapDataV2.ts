@@ -16,7 +16,7 @@
 import { useState, useEffect } from 'react';
 import { UMAP } from 'umap-js';
 import { supabase } from '../lib/supabase';
-import { getArtistTopTags } from '../api/lastfm';
+import { getArtistTopTags, isNoisy } from '../api/lastfm';
 import { getDeezerFeatures, normalizeDeezerFeatures, DeezerFeatures } from '../api/deezer';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -187,6 +187,7 @@ function buildVocab(allTagArrays: Tag[][], topN = 50): string[] {
   const freq = new Map<string, number>();
   for (const tags of allTagArrays) {
     for (const t of tags) {
+      if (isNoisy(t.name)) continue;
       freq.set(t.name, (freq.get(t.name) ?? 0) + t.count);
     }
   }
@@ -196,11 +197,12 @@ function buildVocab(allTagArrays: Tag[][], topN = 50): string[] {
     .map(([name]) => name);
 }
 
-/** All tags sorted by total count across all posts — used for axis dropdowns */
+/** All tags sorted by total count across all posts — used for axis dropdowns and filter chips */
 function buildAllTagsSorted(allTagArrays: Tag[][]): Tag[] {
   const freq = new Map<string, number>();
   for (const tags of allTagArrays) {
     for (const t of tags) {
+      if (isNoisy(t.name)) continue;
       freq.set(t.name, (freq.get(t.name) ?? 0) + t.count);
     }
   }

@@ -47,7 +47,7 @@ const NOISE_REGEXES: RegExp[] = [
   /\b(?:wsum|kcrw|wnyc|kexp|wfmu|kpfa|kqed|wbez|wfuv|wamu|kzsc)\b/, // US callsigns
 ];
 
-function isNoisy(tag: string): boolean {
+export function isNoisy(tag: string): boolean {
   if (TAG_BLACKLIST.has(tag)) return true;
   return NOISE_REGEXES.some(re => re.test(tag));
 }

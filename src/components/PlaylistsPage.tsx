@@ -4,6 +4,21 @@ import { supabase } from '../lib/supabase';
 import { currentUser } from '../auth/currentUserInfo';
 import { HARDCODED_EMOJIS } from './FeedPage';
 
+// ── Supabase setup for playlists. Run this SQL in your Supabase SQL editor:
+//
+//   -- App uses Spotify auth (not Supabase auth) so user_id must be text, not uuid.
+//   -- 1. Drop the FK constraint that points to auth.users
+//   alter table playlists drop constraint if exists playlists_user_id_fkey;
+//
+//   -- 2. Change user_id from uuid to text (Spotify IDs are plain strings)
+//   alter table playlists alter column user_id type text using user_id::text;
+//
+//   -- 3. Add a permissive RLS policy (auth.uid() won't work with Spotify auth)
+//   alter table playlists enable row level security;
+//   drop policy if exists "playlists_allow_all" on playlists;
+//   create policy "playlists_allow_all" on playlists for all using (true) with check (true);
+
+
 const EMOJI_NAMES: Record<string, string> = {
   '🔥': 'Fire',
   '🪩': 'Disco',
@@ -36,6 +51,7 @@ export function PlaylistsPage() {
   const [newName, setNewName] = useState('');
   const [newEmoji, setNewEmoji] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   useEffect(() => {
     loadAll();
@@ -90,10 +106,11 @@ export function PlaylistsPage() {
       });
     }
 
-    // Custom playlists from DB — songs come from reactions matching their emoji
+    // Custom playlists from DB — scoped to the current user
     const { data: customRows, error: cErr } = await supabase
       .from('playlists')
-      .select('id, name, emoji');
+      .select('id, name, emoji')
+      .eq('user_id', currentUser.id);
     if (cErr) console.error('Error loading playlists:', cErr);
 
     const customPlaylists: Playlist[] = (customRows ?? []).map((p: any) => ({
@@ -131,18 +148,27 @@ export function PlaylistsPage() {
   async function handleCreate() {
     if (!newName.trim()) return;
     setIsCreating(true);
+    setCreateError(null);
     const { error } = await supabase.from('playlists').insert({
       id: crypto.randomUUID(),
+      user_id: currentUser.id,
       name: newName.trim(),
       emoji: newEmoji || null,
     });
-    if (error) { console.error('Error creating playlist:', error); }
-    else { setShowNew(false); setNewName(''); setNewEmoji(''); await loadAll(); }
+    if (error) {
+      console.error('Error creating playlist:', error);
+      setCreateError(error.message);
+    } else {
+      setShowNew(false);
+      setNewName('');
+      setNewEmoji('');
+      await loadAll();
+    }
     setIsCreating(false);
   }
 
   async function handleDeletePlaylist(id: string) {
-    const { error } = await supabase.from('playlists').delete().eq('id', id);
+    const { error } = await supabase.from('playlists').delete().eq('id', id).eq('user_id', currentUser.id);
     if (error) { console.error('Error deleting playlist:', error); return; }
     setSelected(null);
     await loadAll();
@@ -153,15 +179,17 @@ export function PlaylistsPage() {
       // Auto playlist — promote to custom by inserting into DB with the new name
       const { error } = await supabase.from('playlists').insert({
         id: crypto.randomUUID(),
+        user_id: currentUser.id,
         name: newName.trim(),
         emoji: emoji ?? null,
       });
       if (error) { console.error('Error creating renamed playlist:', error); return; }
     } else {
       // Delete + re-insert to work around missing UPDATE RLS policy
-      await supabase.from('playlists').delete().eq('id', id);
+      await supabase.from('playlists').delete().eq('id', id).eq('user_id', currentUser.id);
       const { error } = await supabase.from('playlists').insert({
         id,
+        user_id: currentUser.id,
         name: newName.trim(),
         emoji: emoji ?? null,
       });
@@ -211,7 +239,7 @@ export function PlaylistsPage() {
               className="w-full bg-blue-100 border-2 border-black px-4 py-2 mb-4 focus:outline-none focus:border-purple-500"
             />
             <div className="mb-4">
-              <p className="text-sm text-gray-600 mb-2 font-bold">CHOOSE AN EMOJI (OPTIONAL):</p>
+              <p className="text-sm text-gray-600 mb-2 font-bold">CHOOSE AN EMOJI:</p>
               {(() => {
                 const usedEmojis = new Set(playlists.map(p => p.emoji).filter(Boolean));
                 const availableEmojis = HARDCODED_EMOJIS.filter(e => !usedEmojis.has(e));
@@ -237,9 +265,25 @@ export function PlaylistsPage() {
                 <p className="text-xs text-gray-500 mt-2">Songs you reacted to with {newEmoji} will appear here.</p>
               )}
             </div>
+            {createError && (
+              <div className="mb-3 text-xs text-red-600 font-bold border-2 border-red-400 bg-red-50 px-3 py-2">
+                {createError.includes('security policy') || createError.includes('row-level') ? (
+                  <>
+                    <p className="mb-1">RLS policy blocking insert. Run in Supabase SQL editor:</p>
+                    <code className="block bg-red-100 p-1 font-mono text-[10px] whitespace-pre leading-relaxed">
+                      {'create policy "playlists_allow_all"\non playlists for all\nusing (true) with check (true);'}
+                    </code>
+                  </>
+                ) : createError.includes('user_id') ? (
+                  <p>Missing user_id column — run the SQL in PlaylistsPage.tsx to fix.</p>
+                ) : (
+                  <p>{createError}</p>
+                )}
+              </div>
+            )}
             <div className="flex gap-2">
               <button
-                onClick={() => { setShowNew(false); setNewName(''); setNewEmoji(''); }}
+                onClick={() => { setShowNew(false); setNewName(''); setNewEmoji(''); setCreateError(null); }}
                 className="flex-1 bg-gray-200 border-2 border-black px-4 py-2 font-bold hover:bg-gray-300"
               >
                 CANCEL

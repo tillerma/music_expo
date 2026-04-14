@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { UserAvatar } from './UserAvatar';
 import { isLoggedIn, logout } from '../utils/spotifyAuth';
@@ -550,17 +550,39 @@ export function FeedPage() {
         </div>
       )}
 
-      {/* Feed */}
-      <div className="divide-y-2 divide-gray-300">
-        {posts.map((post) => (
-          <SongPostComponent
-            key={post.id}
-            post={post}
-            onReaction={handleReaction}
-            onAddComment={handleAddComment}
-            onDeleteComment={handleDeleteComment}
-          />
-        ))}
+      {/* Feed — grouped by date with divider bars */}
+      <div>
+        {(() => {
+          const elements: React.ReactNode[] = [];
+          let lastDate = '';
+          for (const post of posts) {
+            const date = post.date || (post.createdAt || '').slice(0, 10);
+            if (date !== lastDate) {
+              lastDate = date;
+              elements.push(
+                <div
+                  key={`date-${date}`}
+                  className="sticky top-[73px] z-[5] bg-gray-100 border-y-2 border-gray-300 px-4 py-1.5"
+                >
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    {date ? formatLocalDateFromYMD(date) : 'Unknown date'}
+                  </span>
+                </div>
+              );
+            }
+            elements.push(
+              <div key={post.id} className="border-b-2 border-gray-200">
+                <SongPostComponent
+                  post={post}
+                  onReaction={handleReaction}
+                  onAddComment={handleAddComment}
+                  onDeleteComment={handleDeleteComment}
+                />
+              </div>
+            );
+          }
+          return elements;
+        })()}
       </div>
 
       {posts.length === 0 && (
