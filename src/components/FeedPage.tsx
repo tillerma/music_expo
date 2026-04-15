@@ -361,6 +361,7 @@ export function FeedPage() {
           emoji,
           user_id: currentUser.id,
           user_name: currentUser.username,
+          time: new Date().toISOString(),
         });
         if (insError) {
           console.error('Error swapping reaction:', insError);
@@ -374,6 +375,7 @@ export function FeedPage() {
         emoji,
         user_id: currentUser.id,
         user_name: currentUser.username,
+        time: new Date().toISOString(),
       });
 
       if (error) {
@@ -468,71 +470,81 @@ export function FeedPage() {
       {/* New Post Modal */}
       {showNewPost && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white border-4 border-black p-6 w-full max-w-md shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-            <h2 className="text-xl font-bold mb-4">SHARE TODAY'S SONG</h2>
-            {/* Spotify search: type to search tracks and pick one to auto-fill the URL */}
-            <div className="mb-3">
-              <input
-                type="search"
-                placeholder="Search for a song"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-yellow-100 border-2 border-black px-4 py-2 focus:outline-none focus:border-purple-500"
+          <div className="bg-white border-4 border-black w-full max-w-md shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col" style={{ maxHeight: '85vh' }}>
+
+            {/* Pinned title */}
+            <div className="px-6 pt-6 pb-3 border-b-2 border-gray-200 flex-shrink-0">
+              <h2 className="text-xl font-bold">SHARE TODAY'S SONG</h2>
+            </div>
+
+            {/* Scrollable content */}
+            <div className="overflow-y-auto flex-1 px-6 py-4 space-y-3">
+              {/* Spotify search */}
+              <div>
+                <input
+                  type="search"
+                  placeholder="Search for a song"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-yellow-100 border-2 border-black px-4 py-2 focus:outline-none focus:border-purple-500"
+                />
+                {isSearching && <p className="mt-2 text-sm text-gray-600">Searching…</p>}
+                {searchError && <p className="mt-2 text-sm text-red-600">{searchError}</p>}
+                {searchResults.length > 0 && (
+                  <ul className="mt-2 max-h-48 overflow-auto bg-white border-2 border-black">
+                    {searchResults.map((t) => (
+                      <li
+                        key={t.id}
+                        className="flex items-center gap-3 p-2 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => handleSelectTrack(t)}
+                      >
+                        <img src={t.album.images?.[0]?.url} alt={t.name} className="w-12 h-12 object-cover border-2 border-black" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold truncate">{t.name}</p>
+                          <p className="text-xs text-gray-600 truncate">{t.artists.map((a:any)=>a.name).join(', ')}</p>
+                        </div>
+                        <div className="text-xs text-gray-500">{Math.floor(t.duration_ms/1000)}s</div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <textarea
+                placeholder="Caption (max 140 characters)"
+                maxLength={140}
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                className="w-full bg-yellow-100 border-2 border-black px-4 py-2 focus:outline-none focus:border-purple-500 resize-none h-24"
               />
 
-              {isSearching && <p className="mt-2 text-sm text-gray-600">Searching…</p>}
-              {searchError && <p className="mt-2 text-sm text-red-600">{searchError}</p>}
-
-              {searchResults.length > 0 && (
-                <ul className="mt-2 max-h-48 overflow-auto bg-white border-2 border-black">
-                  {searchResults.map((t) => (
-                    <li
-                      key={t.id}
-                      className="flex items-center gap-3 p-2 hover:bg-gray-100 cursor-pointer"
-                      onClick={() => handleSelectTrack(t)}
-                    >
-                      <img src={t.album.images?.[0]?.url} alt={t.name} className="w-12 h-12 object-cover border-2 border-black" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold truncate">{t.name}</p>
-                        <p className="text-xs text-gray-600 truncate">{t.artists.map((a:any)=>a.name).join(', ')}</p>
-                      </div>
-                      <div className="text-xs text-gray-500">{Math.floor(t.duration_ms/1000)}s</div>
-                    </li>
-                  ))}
-                </ul>
+              {/* Preview of selected track */}
+              {selectedTrack && (
+                <div className="p-2 bg-gradient-to-r from-green-100 to-blue-100 border-2 border-black flex items-center gap-3">
+                  <img src={selectedTrack.album.images?.[0]?.url} alt={selectedTrack.name} className="w-12 h-12 object-cover border-2 border-black" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold truncate">{selectedTrack.name}</p>
+                    <p className="text-xs text-gray-600 truncate">{selectedTrack.artists.map((a:any)=>a.name).join(', ')}</p>
+                    <p className="text-xs mt-0.5">
+                      {featuresStatus === 'loading' && <span className="text-gray-400">fetching tags from Last.fm…</span>}
+                      {featuresStatus === 'ok'      && <span className="text-green-600 font-bold">✓ {pendingTags.length} tags ready</span>}
+                      {featuresStatus === 'failed'  && <span className="text-red-500">⚠ no tags found (map may not show this song)</span>}
+                    </p>
+                  </div>
+                  <a
+                    href={`https://open.spotify.com/track/${selectedTrack.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="self-center p-2 bg-green-500 hover:bg-green-600 border-2 border-black text-white"
+                  >
+                    Open
+                  </a>
+                </div>
               )}
             </div>
-            <textarea
-              placeholder="Caption (max 140 characters)"
-              maxLength={140}
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              className="w-full bg-yellow-100 border-2 border-black px-4 py-2 mb-4 focus:outline-none focus:border-purple-500 resize-none h-24"
-            />
-            {/* Preview of selected track (if any) */}
-            {selectedTrack && (
-              <div className="mb-3 p-2 bg-gradient-to-r from-green-100 to-blue-100 border-2 border-black flex items-center gap-3">
-                <img src={selectedTrack.album.images?.[0]?.url} alt={selectedTrack.name} className="w-12 h-12 object-cover border-2 border-black" />
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold truncate">{selectedTrack.name}</p>
-                  <p className="text-xs text-gray-600 truncate">{selectedTrack.artists.map((a:any)=>a.name).join(', ')}</p>
-                  <p className="text-xs mt-0.5">
-                    {featuresStatus === 'loading' && <span className="text-gray-400">fetching tags from Last.fm…</span>}
-                    {featuresStatus === 'ok'      && <span className="text-green-600 font-bold">✓ {pendingTags.length} tags ready</span>}
-                    {featuresStatus === 'failed'  && <span className="text-red-500">⚠ no tags found (map may not show this song)</span>}
-                  </p>
-                </div>
-                <a
-                  href={`https://open.spotify.com/track/${selectedTrack.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="self-center p-2 bg-green-500 hover:bg-green-600 border-2 border-black text-white"
-                >
-                  Open
-                </a>
-              </div>
-            )}
-            <div className="flex gap-2">
+
+            {/* Pinned buttons */}
+            <div className="px-6 py-4 border-t-2 border-gray-200 flex-shrink-0 flex gap-2">
               <button
                 onClick={handleCloseModal}
                 className="flex-1 bg-gray-200 border-2 border-black px-4 py-2 font-bold hover:bg-gray-300 transition-colors"
@@ -1131,15 +1143,21 @@ function AddCommentForm({ postId, onAddComment, onCancel }: AddCommentFormProps)
   };
 
   return (
-    <div className="bg-white border-4 border-black p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-      <h3 className="text-sm font-bold mb-3">NEW COMMENT</h3>
-      
+    <div className="bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex flex-col" style={{ maxHeight: '70vh' }}>
+
+      {/* Pinned header */}
+      <div className="px-4 pt-4 pb-2 border-b-2 border-gray-200 flex-shrink-0">
+        <h3 className="text-sm font-bold">NEW COMMENT</h3>
+      </div>
+
+      {/* Scrollable content */}
+      <div className="overflow-y-auto flex-1 px-4 py-3 space-y-3">
       <textarea
         placeholder="Your comment (max 140 characters)"
         maxLength={140}
         value={caption}
         onChange={(e) => setCaption(e.target.value)}
-        className="w-full bg-yellow-100 border-2 border-black px-3 py-2 mb-3 focus:outline-none focus:border-purple-500 resize-none h-20 text-sm"
+        className="w-full bg-yellow-100 border-2 border-black px-3 py-2 focus:outline-none focus:border-purple-500 resize-none h-20 text-sm"
       />
 
       <label className="flex items-center gap-2 mb-3 cursor-pointer">
@@ -1153,7 +1171,7 @@ function AddCommentForm({ postId, onAddComment, onCancel }: AddCommentFormProps)
       </label>
 
       {includeSong && (
-        <div className="space-y-2 mb-3 p-3 bg-blue-50 border-2 border-black">
+        <div className="space-y-2 p-3 bg-blue-50 border-2 border-black">
           {!selectedTrackC ? (
             <>
               <input
@@ -1241,8 +1259,10 @@ function AddCommentForm({ postId, onAddComment, onCancel }: AddCommentFormProps)
           )}
         </div>
       )}
+      </div>{/* end scrollable content */}
 
-      <div className="flex gap-2">
+      {/* Pinned buttons */}
+      <div className="px-4 py-3 border-t-2 border-gray-200 flex-shrink-0 flex gap-2">
         <button
           onClick={onCancel}
           className="flex-1 bg-gray-200 border-2 border-black px-4 py-2 font-bold hover:bg-gray-300 transition-colors text-sm"
